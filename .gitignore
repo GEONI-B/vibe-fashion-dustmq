@@ -1,0 +1,25 @@
+# Python 캐시 및 컴파일 파일
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 가상환경 폴더
+.venv/
+venv/
+env/
+ENV/
+
+# 환경 변수 파일 (비밀키 및 데이터베이스 접속 정보 보호)
+.env
+
+# 운영체제 임시 파일
+.DS_Store
+Thumbs.db
+
+# 로그 및 데이터베이스 파일
+*.log
+*.sqlite3
+instance/
+.pytest_cache/
+*.pyc

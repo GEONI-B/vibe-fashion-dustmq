@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+
+{% block title %}회원 혜택 - VIBE FASHION{% endblock %}
+
+{% block content %}
+<!-- ============================================== -->
+<!-- 1. 히어로 배너 (Hero Banner) -->
+<!-- ============================================== -->
+<section class="bg-dark text-white py-5 position-relative overflow-hidden">
+    <div class="container py-4">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold mb-3 shadow-sm">
+                    👑 VIBE MEMBERSHIP
+                </span>
+                <h1 class="display-5 fw-bolder mb-2">VIBE FASHION 회원 혜택 안내</h1>
+                <p class="lead text-light opacity-90 mb-0 fs-6">
+                    구매할수록 커지는 특별한 혜택! 등급별 할인 쿠폰, 적립금, 무료 배송까지 다양한 멤버십 리워드를 누려보세요.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                {% if not user_info %}
+                <a href="{{ url_for('auth.signup') }}" class="btn btn-primary rounded-pill px-4 py-2 fw-bold shadow">
+                    <i class="bi bi-person-plus me-1"></i>지금 가입하고 15% 쿠폰 받기
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container py-5">
+    <!-- ============================================== -->
+    <!-- 2. 내 등급 현황 카드 (로그인 시 노출) -->
+    <!-- ============================================== -->
+    {% if user_info %}
+    <div class="card border-0 shadow-sm rounded-4 mb-5 overflow-hidden bg-white">
+        <div class="card-body p-4 p-md-5">
+            <div class="row align-items-center g-4">
+                <div class="col-md-7">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge 
+                            {% if user_info.grade == 'VIP' %}bg-dark border border-warning text-warning
+                            {% elif user_info.grade == 'GOLD' %}bg-warning text-dark
+                            {% elif user_info.grade == 'SILVER' %}bg-secondary text-white
+                            {% else %}bg-secondary text-white{% endif %} 
+                            px-3 py-2 rounded-pill fw-bold">
+                            {{ user_info.grade }} GRADE
+                        </span>
+                        <h4 class="fw-bold mb-0"><strong>{{ user_info.name }}</strong>님의 멤버십 현황</h4>
+                    </div>
+                    <p class="text-muted small mb-3">현재까지의 누적 실결제 금액: <strong class="text-dark">{{ user_info.total_spent_formatted }}</strong></p>
+
+                    {% if user_info.target_grade != 'MAX' %}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>다음 등급 (<strong>{{ user_info.target_grade }}</strong>)까지</span>
+                            <span>남은 금액: <strong class="text-primary">{{ user_info.needed_amount_formatted }}</strong></span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: {{ user_info.progress_pct }}%;" 
+                                 aria-valuenow="{{ user_info.progress_pct }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0 py-2 px-3 small rounded-3">
+                        🎉 최상위 <strong>VIP 등급</strong> 혜택을 모두 누리고 계십니다!
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-5 text-md-end border-start-md">
+                    <div class="p-3 bg-light rounded-4 text-center">
+                        <div class="text-muted small mb-1">나의 보유 쿠폰 및 등급 혜택</div>
+                        <div class="fw-bold text-dark fs-5 mb-2">상시 할인 + 전용 쿠폰팩</div>
+                        <a href="{{ url_for('main.new_arrivals') }}" class="btn btn-dark btn-sm rounded-pill px-4 py-2 fw-semibold">
+                            혜택받고 쇼핑하기 <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- 비로그인 시 가입 유도 배너 -->
+    <div class="card border-0 shadow-sm rounded-4 mb-5 p-4 p-md-5 text-center bg-white">
+        <div class="py-2">
+            <i class="bi bi-gift-fill display-4 text-primary mb-3 d-block"></i>
+            <h3 class="fw-bold mb-2">로그인하고 나만의 멤버십 혜택을 확인하세요</h3>
+            <p class="text-muted small mb-4">
+                가입 즉시 전원 15% 웰컴 할인 쿠폰 지급 및 결제 금액에 따른 자동 등급 업그레이드가 진행됩니다.
+            </p>
+            <div class="d-flex justify-content-center gap-2">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-dark rounded-pill px-4 py-2 fw-semibold">
+                    로그인하기
+                </a>
+                <a href="{{ url_for('auth.signup') }}" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold">
+                    무료 회원가입
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ============================================== -->
+    <!-- 3. 등급별 혜택 카드 그리드 (4단계) -->
+    <!-- ============================================== -->
+    <div class="text-center mb-5">
+        <span class="text-primary fw-bold text-uppercase small">Tier & Benefits</span>
+        <h2 class="fw-bolder mt-1 mb-2">회원 등급별 특별 혜택</h2>
+        <p class="text-muted small">최근 6개월 누적 실결제 금액을 기준으로 매일 자동 반영됩니다.</p>
+        <div class="divider mx-auto bg-primary"></div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        {% for b in grade_benefits %}
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden 
+                {% if user_info and user_info.grade == b.grade %}border border-2 border-primary position-relative{% endif %}">
+                
+                {% if user_info and user_info.grade == b.grade %}
+                <span class="position-absolute top-0 end-0 bg-primary text-white text-xs px-3 py-1 rounded-bottom-start fw-bold">
+                    현재 나의 등급
+                </span>
+                {% endif %}
+
+                <div class="card-header bg-white border-0 pt-4 pb-0 text-center">
+                    <span class="badge {{ b.badge_class }} rounded-pill px-3 py-2 fw-bold fs-6 mb-2">
+                        {{ b.grade }}
+                    </span>
+                    <div class="text-muted small fw-semibold">{{ b.condition }}</div>
+                </div>
+
+                <div class="card-body p-4 d-flex flex-column">
+                    <p class="card-text text-secondary small mb-4 text-center">
+                        {{ b.description }}
+                    </p>
+
+                    <div class="bg-light p-3 rounded-3 mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2 small">
+                            <span class="text-muted">상시 할인</span>
+                            <strong class="text-danger">{{ b.discount_rate }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2 small">
+                            <span class="text-muted">포인트 적립</span>
+                            <strong class="text-primary">{{ b.reward_rate }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small">
+                            <span class="text-muted">배송 혜택</span>
+                            <span class="fw-semibold text-dark">{{ b.shipping }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-auto">
+                        <h6 class="fw-bold small text-dark mb-2">🎁 제공 쿠폰팩</h6>
+                        <ul class="list-unstyled mb-0 small text-secondary">
+                            {% for cp in b.coupons %}
+                            <li class="mb-1"><i class="bi bi-check2 text-success me-1"></i>{{ cp }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ============================================== -->
+    <!-- 4. 공통 회원 혜택 4대 서비스 (Benefits Grid) -->
+    <!-- ============================================== -->
+    <div class="card border-0 shadow-sm rounded-5 p-4 p-md-5 bg-white mb-5">
+        <h4 class="fw-bolder mb-4 text-center">모든 회원님을 위한 기본 혜택</h4>
+        <div class="row g-4 text-center">
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="fs-1 text-primary mb-2"><i class="bi bi-truck"></i></div>
+                    <h6 class="fw-bold mb-1">무료 배송</h6>
+                    <p class="text-muted small mb-0">5만원 이상 구매 시 전 상품 무료 배송 혜택</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="fs-1 text-success mb-2"><i class="bi bi-arrow-repeat"></i></div>
+                    <h6 class="fw-bold mb-1">안심 교환 / 반품</h6>
+                    <p class="text-muted small mb-0">수령 후 7일 이내 간편하고 신속한 교환/반품 보장</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="fs-1 text-warning mb-2"><i class="bi bi-stars"></i></div>
+                    <h6 class="fw-bold mb-1">15% 웰컴 쿠폰</h6>
+                    <p class="text-muted small mb-0">신규 가입 즉시 지급되는 첫 구매 축하 할인</p>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="fs-1 text-info mb-2"><i class="bi bi-balloon-heart"></i></div>
+                    <h6 class="fw-bold mb-1">생일 축하 쿠폰</h6>
+                    <p class="text-muted small mb-0">생일 달에 증정되는 등급별 특별 생일 축하 쿠폰</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- 5. 유의사항 아코디언 -->
+    <!-- ============================================== -->
+    <div class="accordion accordion-flush bg-white rounded-4 shadow-sm p-3" id="benefitsAccordion">
+        <div class="accordion-item border-0">
+            <h2 class="accordion-header" id="headingNotice">
+                <button class="accordion-button collapsed fw-bold text-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotice" aria-expanded="false" aria-controls="collapseNotice">
+                    <i class="bi bi-info-circle me-2"></i>등급 선정 기준 및 이용 유의사항
+                </button>
+            </h2>
+            <div id="collapseNotice" class="accordion-collapse collapse" aria-labelledby="headingNotice" data-bs-parent="#benefitsAccordion">
+                <div class="accordion-body small text-muted pt-2">
+                    <ul class="mb-0 ps-3">
+                        <li>등급 산정 기준: 최근 실 결제 완료 금액(환불/취소 금액 제외)을 기준으로 시스템에 의해 매일 자동 반영됩니다.</li>
+                        <li>주문 취소 및 반품 발생 시 누적 실결제액이 차감되어 등급이 재조정될 수 있습니다.</li>
+                        <li>쿠폰은 중복 적용이 제한될 수 있으며, 일부 특가 및 세일 상품에는 적용되지 않을 수 있습니다.</li>
+                        <li>회원 탈퇴 시 보유 중인 모든 등급 혜택, 포인트 및 쿠폰은 자동 소멸됩니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

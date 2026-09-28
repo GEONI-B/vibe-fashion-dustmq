@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}신상품 (NEW) - VIBE FASHION{% endblock %}
+
+{% block content %}
+<!-- ============================================== -->
+<!-- 1. 신상품 헤더 배너 (New Arrivals Header) -->
+<!-- ============================================== -->
+<section class="bg-dark text-white py-5 position-relative overflow-hidden">
+    <div class="container py-3">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <span class="badge bg-primary px-3 py-2 rounded-pill fw-bold mb-3 shadow-sm">
+                    ✨ 2026 S/S NEW ARRIVALS
+                </span>
+                <h1 class="display-5 fw-bolder mb-2">신상품 컬렉션</h1>
+                <p class="lead text-light opacity-90 mb-0 fs-6">
+                    매일 새롭게 업데이트되는 VIBE FASHION의 감각적인 신상 라인업을 가장 먼저 만나보세요.
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                <span class="badge bg-light text-dark px-3 py-2 rounded-pill fw-semibold">
+                    총 {{ counts.all }}개의 신상품 등록
+                </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================== -->
+<!-- 2. 카테고리 필터 탭 (Category Filter Pills) -->
+<!-- ============================================== -->
+<section class="bg-white border-bottom sticky-top shadow-sm py-3" style="top: 70px; z-index: 1020;">
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <ul class="nav nav-pills gap-2">
+                <!-- 전체보기 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'all' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='all') }}">
+                        전체보기 <span class="badge rounded-pill {% if current_category == 'all' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.all }}</span>
+                    </a>
+                </li>
+                <!-- 상의 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'top' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='top') }}">
+                        상의 <span class="badge rounded-pill {% if current_category == 'top' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.top }}</span>
+                    </a>
+                </li>
+                <!-- 바지 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'pants' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='pants') }}">
+                        바지 <span class="badge rounded-pill {% if current_category == 'pants' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.pants }}</span>
+                    </a>
+                </li>
+                <!-- 아우터 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'outer' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='outer') }}">
+                        아우터 <span class="badge rounded-pill {% if current_category == 'outer' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.outer }}</span>
+                    </a>
+                </li>
+                <!-- 원피스 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'dress' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='dress') }}">
+                        원피스 <span class="badge rounded-pill {% if current_category == 'dress' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.dress }}</span>
+                    </a>
+                </li>
+                <!-- 치마 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'skirt' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='skirt') }}">
+                        치마 <span class="badge rounded-pill {% if current_category == 'skirt' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.skirt }}</span>
+                    </a>
+                </li>
+                <!-- 양말 -->
+                <li class="nav-item">
+                    <a class="nav-link rounded-pill px-3 py-2 fw-semibold {% if current_category == 'socks' %}active bg-dark text-white{% else %}text-secondary bg-light{% endif %}" 
+                       href="{{ url_for('main.new_arrivals', category='socks') }}">
+                        양말 <span class="badge rounded-pill {% if current_category == 'socks' %}bg-white text-dark{% else %}bg-secondary text-white{% endif %} ms-1">{{ counts.socks }}</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- 정렬 및 안내 텍스트 -->
+            <div class="text-muted small d-none d-md-block">
+                선택된 카테고리 상품: <strong>{{ products|length }}</strong>개
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================== -->
+<!-- 3. 신상품 그리드 목록 (Product Cards Grid) -->
+<!-- ============================================== -->
+<section class="py-5 bg-light min-vh-75">
+    <div class="container">
+        {% if products %}
+        <div class="row g-4">
+            {% for item in products %}
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 product-card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                    <!-- 상품 이미지 영역 -->
+                    <div class="position-relative product-img-wrapper" style="aspect-ratio: 4/5; overflow: hidden;">
+                        <img src="{{ item.thumbnail_url }}" class="card-img-top product-img w-100 h-100 object-fit-cover" 
+                             alt="{{ item.name }}" loading="lazy">
+                        
+                        <!-- 신상품/할인 뱃지 -->
+                        <div class="position-absolute top-0 start-0 m-3 d-flex flex-column gap-1">
+                            <span class="badge bg-dark rounded-pill px-3 py-2 fw-bold shadow-sm">
+                                NEW
+                            </span>
+                            {% if item.has_discount %}
+                            <span class="badge bg-danger rounded-pill px-3 py-2 fw-bold shadow-sm">
+                                {{ item.discount_pct }}% OFF
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- 위시리스트 하트 버튼 -->
+                        <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist"
+                                onclick="toggleWishlist(this, '{{ item.name }}')" title="관심 상품 등록">
+                            <i class="bi bi-heart text-secondary"></i>
+                        </button>
+                    </div>
+
+                    <!-- 상품 본문 정보 -->
+                    <div class="card-body d-flex flex-column p-4">
+                        <!-- 카테고리 태그 -->
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark border rounded-pill px-2 py-1 small fw-semibold">
+                                {{ item.category_name }}
+                            </span>
+                        </div>
+
+                        <!-- 상품명 -->
+                        <h5 class="card-title fw-bold fs-6 mb-2 text-truncate" title="{{ item.name }}">
+                            {{ item.name }}
+                        </h5>
+
+                        <!-- 상품 설명 (2줄 요약) -->
+                        <p class="card-text text-secondary small flex-grow-1 text-truncate-2 mb-3">
+                            {{ item.description }}
+                        </p>
+
+                        <!-- 가격 정보 -->
+                        <div class="mb-3">
+                            {% if item.has_discount %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted text-decoration-line-through small">{{ item.original_price }}</span>
+                                <span class="text-danger fw-bold small">{{ item.discount_pct }}%</span>
+                            </div>
+                            {% endif %}
+                            <div class="d-flex align-items-baseline">
+                                <span class="h5 fw-bolder text-dark mb-0">{{ item.price }}</span>
+                            </div>
+                        </div>
+
+                        <!-- 장바구니 담기 버튼 -->
+                        <div class="d-grid gap-2 mt-auto">
+                            <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2"
+                                    onclick="addToCart('{{ item.id }}', '{{ item.name }}')">
+                                <i class="bi bi-cart-plus me-1"></i>장바구니 담기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- 상품이 없을 때 안내 -->
+        <div class="card border-0 shadow-sm rounded-4 py-5 text-center my-4">
+            <div class="card-body py-5">
+                <i class="bi bi-box-seam display-1 text-muted mb-3 d-block"></i>
+                <h4 class="fw-bold">해당 카테고리의 상품이 없습니다.</h4>
+                <p class="text-muted small mb-4">다른 카테고리를 선택하거나 전체보기를 확인해 보세요.</p>
+                <a href="{{ url_for('main.new_arrivals', category='all') }}" class="btn btn-dark rounded-pill px-4 py-2 fw-semibold">
+                    전체 신상품 보기
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
