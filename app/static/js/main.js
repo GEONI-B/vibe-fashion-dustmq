@@ -70,11 +70,16 @@ function loadCartCount() {
 
 /**
  * 관심 상품(위시리스트) 하트 토글 함수
- * 하트 아이콘 클릭 시 활성화/비활성화 상태를 토글합니다.
+ * 로그인하지 않은 사용자는 경고 문구를 표시하고 하트 변경을 차단합니다.
  * @param {HTMLElement} button - 클릭된 버튼 엘리먼트
  * @param {string} productName - 상품명
  */
 function toggleWishlist(button, productName) {
+    if (!window.IS_LOGGED_IN) {
+        alert('로그인 해야 합니다.');
+        return false;
+    }
+
     const icon = button.querySelector('i');
     button.classList.toggle('active');
 

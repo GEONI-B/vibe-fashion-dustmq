@@ -13,6 +13,11 @@
 
     <!-- 3. 커스텀 스타일시트 연결 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <!-- 사용자 로그인 상태 전역 변수 정의 (head에서 즉시 선언) -->
+    <script>
+        window.IS_LOGGED_IN = {% if session.get('user') %}true{% else %}false{% endif %};
+    </script>
 </head>
 <body>
     <!-- 상단 혜택 안내 바 (Notification Bar) -->
@@ -207,7 +212,7 @@
     <!-- Bootstrap 5.3 CDN JavaScript 번들 (Popper 포함) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- 커스텀 자바스크립트 파일 -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- 커스텀 자바스크립트 파일 (캐시 갱신 버전 추가) -->
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.0.1"></script>
 </body>
 </html>
