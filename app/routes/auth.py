@@ -234,3 +234,49 @@ def logout():
     session.pop('access_token', None)
     flash('성공적으로 로그아웃되었습니다.', 'info')
     return redirect(url_for('main.index'))
+
+
+@auth_bp.route('/withdraw', methods=['POST'])
+def withdraw():
+    """
+    회원 탈퇴 처리
+    로그인된 사용자의 계정을 삭제(auth.admin.delete_user 및 세션 정리)합니다.
+    """
+    user = session.get('user')
+    if not user:
+        flash('로그인이 필요합니다.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    user_id = user.get('id')
+    user_name = user.get('name', '고객')
+
+    try:
+        service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        supabase_admin = get_supabase_client(use_service_role=bool(service_key))
+
+        # 1. profiles 테이블 데이터 삭제 (Foreign Key CASCADE가 설정되어 있어도 안전하게 삭제)
+        try:
+            supabase_admin.table('profiles').delete().eq('id', user_id).execute()
+        except Exception as p_err:
+            logger.warning("회원탈퇴 profiles 레코드 삭제 경고: %s", p_err)
+
+        # 2. Supabase Auth 사용자 삭제
+        try:
+            supabase_admin.auth.admin.delete_user(user_id)
+        except Exception as a_err:
+            logger.warning("auth.admin.delete_user 실패: %s", a_err)
+
+        # 3. 사용자 세션 및 장바구니/위시리스트 초기화
+        session.pop('user', None)
+        session.pop('access_token', None)
+        session.pop('cart', None)
+        session.pop('wishlist', None)
+
+        flash(f'{user_name}님, 회원탈퇴가 정상적으로 처리되었습니다. 그동안 이용해 주셔서 감사합니다.', 'info')
+        return redirect(url_for('main.index'))
+
+    except Exception as e:
+        logger.error("회원탈퇴 처리 중 오류 발생: %s", e, exc_info=True)
+        flash('회원탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.', 'danger')
+        return redirect(url_for('main.index'))
+
