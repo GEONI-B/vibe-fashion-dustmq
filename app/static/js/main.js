@@ -69,6 +69,19 @@ function loadCartCount() {
 }
 
 /**
+ * 로그인 필요 모달 팝업 표시 함수
+ */
+function showLoginModal() {
+    const modalEl = document.getElementById('loginAlertModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    } else {
+        alert('로그인 해야 합니다');
+    }
+}
+
+/**
  * 관심 상품(위시리스트) 하트 토글 함수
  * 로그인하지 않은 사용자는 경고 문구를 표시하고 하트 변경을 차단합니다.
  * @param {HTMLElement} button - 클릭된 버튼 엘리먼트
@@ -76,7 +89,7 @@ function loadCartCount() {
  */
 function toggleWishlist(button, productName) {
     if (!window.IS_LOGGED_IN) {
-        alert('로그인 해야 합니다.');
+        showLoginModal();
         return false;
     }
 
