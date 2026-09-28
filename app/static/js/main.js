@@ -216,9 +216,21 @@ function initNavbarActive() {
     });
 }
 
+/**
+ * 사이트 접속 시 "준비 중인 사이트" 알림 모달 팝업 표시
+ */
+function showSiteUnderConstructionModal() {
+    const modalEl = document.getElementById('siteUnderConstructionModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+}
+
 // 문서 로드 완료 시 초기화 작업
 document.addEventListener('DOMContentLoaded', () => {
     loadCartCount();
     initNavbarActive();
+    showSiteUnderConstructionModal();
     console.log('VIBE FASHION 웹앱이 성공적으로 로드되었습니다.');
 });
