@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}'{{ query }}' 검색 결과 - VIBE FASHION{% endblock %}
+
+{% block content %}
+<!-- ============================================== -->
+<!-- 검색 헤더 섹션 -->
+<!-- ============================================== -->
+<section class="py-5 bg-white border-bottom">
+    <div class="container text-center">
+        <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-semibold mb-3">
+            🔍 SEARCH RESULTS
+        </span>
+        <h2 class="fw-bolder mb-2">
+            {% if query %}
+            '<span class="text-primary">{{ query }}</span>' 검색 결과
+            {% else %}
+            전체 상품 검색
+            {% endif %}
+        </h2>
+        <p class="text-muted small">
+            총 <strong class="text-primary">{{ products|length }}</strong>개의 상품을 찾았습니다.
+        </p>
+
+        <!-- 페이지 내 재검색 바 -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 col-md-7 col-lg-6">
+                <form action="{{ url_for('main.search') }}" method="GET" class="search-bar-unified">
+                    <div class="input-group">
+                        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="상품명을 입력해보세요..." required>
+                        <button class="btn btn-search-submit" type="submit">
+                            <i class="bi bi-search me-1"></i>검색
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================== -->
+<!-- 검색 상품 목록 그리드 -->
+<!-- ============================================== -->
+<section class="py-5 bg-light min-vh-75">
+    <div class="container">
+        {% if products %}
+        <div class="row g-4">
+            {% for item in products %}
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 product-card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                    <!-- 상품 이미지 영역 -->
+                    <div class="position-relative product-img-wrapper" style="aspect-ratio: 4/5; overflow: hidden;">
+                        <img src="{{ item.thumbnail_url }}" class="card-img-top product-img w-100 h-100 object-fit-cover" 
+                             alt="{{ item.name }}" loading="lazy">
+                        
+                        <!-- 신상품/할인 뱃지 -->
+                        <div class="position-absolute top-0 start-0 m-3 d-flex flex-column gap-1">
+                            {% if item.has_discount %}
+                            <span class="badge bg-danger rounded-pill px-3 py-2 fw-bold shadow-sm">
+                                {{ item.discount_pct }}% OFF
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- 위시리스트 하트 버튼 -->
+                        <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist"
+                                onclick="toggleWishlist(this, '{{ item.name }}')" title="관심 상품 등록">
+                            <i class="bi bi-heart text-secondary"></i>
+                        </button>
+                    </div>
+
+                    <!-- 상품 본문 정보 -->
+                    <div class="card-body d-flex flex-column p-4">
+                        <!-- 카테고리 태그 -->
+                        {% if item.category_name %}
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark border rounded-pill px-2 py-1 small fw-semibold">
+                                {{ item.category_name }}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        <!-- 상품명 -->
+                        <h5 class="card-title fw-bold fs-6 mb-2 text-truncate" title="{{ item.name }}">
+                            {{ item.name }}
+                        </h5>
+
+                        <!-- 상품 설명 -->
+                        {% if item.description %}
+                        <p class="card-text text-secondary small flex-grow-1 text-truncate-2 mb-3">
+                            {{ item.description }}
+                        </p>
+                        {% endif %}
+
+                        <!-- 가격 정보 -->
+                        <div class="mb-3">
+                            {% if item.has_discount %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted text-decoration-line-through small">{{ item.original_price }}</span>
+                                <span class="text-danger fw-bold small">{{ item.discount_pct }}%</span>
+                            </div>
+                            {% endif %}
+                            <div class="d-flex align-items-baseline">
+                                <span class="h5 fw-bolder text-dark mb-0">{{ item.price }}</span>
+                            </div>
+                        </div>
+
+                        <!-- 장바구니 담기 버튼 -->
+                        <div class="d-grid gap-2 mt-auto">
+                            <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2" 
+                                    onclick="addToCart('{{ item.id }}', '{{ item.name }}')">
+                                <i class="bi bi-cart-plus me-1"></i>장바구니 담기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- 검색 결과가 없을 때 안내 화면 -->
+        <div class="row justify-content-center py-5">
+            <div class="col-12 col-md-6 text-center py-5">
+                <i class="bi bi-search display-1 text-muted opacity-50 mb-4 d-block"></i>
+                <h4 class="fw-bold mb-2">검색 결과가 없습니다</h4>
+                <p class="text-muted mb-4">
+                    {% if query %}
+                    '<strong>{{ query }}</strong>'와 일치하는 상품을 찾을 수 없습니다.<br>
+                    다른 검색어를 입력해 보시거나 철자를 확인해 주세요.
+                    {% else %}
+                    검색어를 입력해 주세요.
+                    {% endif %}
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold">
+                        홈으로 가기
+                    </a>
+                    <a href="{{ url_for('main.new_arrivals') }}" class="btn btn-outline-dark rounded-pill px-4 py-2 fw-semibold">
+                        신상품 둘러보기
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

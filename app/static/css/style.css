@@ -1,69 +1,193 @@
 /* ===================================================
-   VIBE FASHION - 메인 커스텀 스타일시트
-   Young Fit 브랜드 톤 & 반응형 모던 디자인
-   (한국어 주석 포함 / 초보자도 이해하기 쉬운 구조)
+   VIBE FASHION - 레트로 아날로그 게임 & 파스텔 핑크 테마
+   (핑크, 연노랑, 연보라 메인 컬러 & 귀여운 아날로그 게임 룩)
    =================================================== */
 
-/* 1. Google Fonts 가져오기 (Noto Sans KR + Playfair Display) */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap');
+/* 1. Google Fonts 가져오기 (귀여운 라운드 & 레트로 게임 감성 폰트 + Noto Sans KR) */
+@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Jua&family=Noto+Sans+KR:wght@400;600;800&display=swap');
 
 /* 2. 브랜드 컬러 및 디자인 시스템 변수 */
 :root {
-    /* Young Fit 브랜드 톤: 딥 네이비(#1a2a4a) + 코랄(#ff6b5b) 포인트 */
-    --brand-navy: #1a2a4a;
-    --brand-coral: #ff6b5b;
-    --brand-coral-hover: #fa5240;
-    --brand-black: #0d1117;
-    --brand-gray-light: #f8fafc;
-    --brand-gray-border: #e2e8f0;
-    --text-primary: #1e293b;
-    --text-muted: #64748b;
-    --border-radius-card: 16px;
+    /* 파스텔 핑크, 연노랑, 연보라 아날로그 게임 테마 */
+    --pastel-pink-main: #ff85a2;        /* 메인 사랑스러운 핑크 */
+    --pastel-pink-soft: #ffe4ec;        /* 부드러운 딸기우유 핑크 */
+    --pastel-pink-deep: #ff5483;        /* 핫핑크 포인트 */
+    --pastel-yellow: #fff3b0;           /* 따스한 레트로 연노랑 */
+    --pastel-yellow-deep: #fcd34d;      /* 옐로우 포인트 */
+    --pastel-purple: #e2d9f3;           /* 몽환적인 연보라 */
+    --pastel-purple-deep: #b39ddb;      /* 퍼플 포인트 */
+    --retro-dark: #3a2e39;              /* 부드러운 아날로그 초콜릿 다크 */
+    --retro-border: #4a3746;            /* 레트로 도트 윤곽선 컬러 */
+    --retro-bg: #fff9fb;                /* 전체 배경 은은한 핑크 화이트 */
+    
+    --brand-navy: var(--retro-dark);
+    --brand-coral: var(--pastel-pink-deep);
+    --brand-coral-hover: #ff2d6c;
+    --brand-black: #2b222a;
+    --brand-gray-light: #fff5f8;
+    --brand-gray-border: #ffd1dc;
+    --text-primary: #3a2e39;
+    --text-muted: #846f80;
+    --border-radius-card: 20px;
 }
 
-/* 전역 폰트 및 베이스 스타일 (Noto Sans KR 기본 적용) */
+/* 전역 베이스 스타일 */
 body {
-    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Jua', 'Noto Sans KR', -apple-system, sans-serif;
     color: var(--text-primary);
-    background-color: #ffffff;
+    background-color: var(--retro-bg);
+    background-image: 
+        radial-gradient(var(--pastel-purple) 1px, transparent 1px),
+        radial-gradient(var(--pastel-pink-soft) 1px, var(--retro-bg) 1px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
     -webkit-font-smoothing: antialiased;
 }
 
-/* 세리프 폰트 적용 (Playfair Display) */
+/* 레트로 아날로그 게임 폰트 클래스 */
 .navbar-brand,
 .hero-section h1,
-.font-serif {
-    font-family: 'Playfair Display', 'Noto Sans KR', serif;
+.retro-title {
+    font-family: 'Jua', 'Gaegu', cursive, sans-serif;
 }
 
-/* 3. 상단 공지사항 바 */
+/* 3. 상단 혜택 공지 바 (사랑스러운 연보라 & 핑크 그라데이션) */
 .top-announcement {
-    background-color: var(--brand-navy) !important;
-    font-size: 0.85rem;
-    letter-spacing: -0.3px;
+    background: linear-gradient(90deg, #ff9bb5, #d8b4e2, #fde68a, #ff9bb5) !important;
+    background-size: 300% 100% !important;
+    animation: pastelGradient 12s ease infinite !important;
+    color: #2e1d2b !important;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-bottom: 2px dashed #ff85a2;
 }
 
-/* 4. 네비게이션 바 커스텀 */
+@keyframes pastelGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 4. 네비게이션 바 (아날로그 게임 콘솔 느낌) */
+.navbar {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(8px);
+    border-bottom: 3px solid #ffccd8 !important;
+    box-shadow: 0 4px 15px rgba(255, 133, 162, 0.15) !important;
+}
+
 .navbar-brand {
-    font-size: 1.45rem;
+    font-size: 1.65rem;
     font-weight: 800;
-    letter-spacing: 0.5px;
-    color: var(--brand-navy) !important;
+    color: var(--pastel-pink-deep) !important;
+    text-shadow: 2px 2px 0px var(--pastel-yellow);
+    display: inline-flex;
+    align-items: center;
+}
+
+.navbar-brand i {
+    color: var(--pastel-pink-deep) !important;
+    animation: heartBeat 1.8s ease-in-out infinite;
+}
+
+@keyframes heartBeat {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.18); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.12); }
+}
+
+.nav-link {
+    font-size: 1.05rem;
+    color: var(--retro-dark) !important;
+    transition: all 0.2s ease;
+    border-radius: 12px;
+    padding: 0.4rem 0.9rem !important;
+    margin: 0 2px;
+}
+
+.nav-link:hover {
+    color: var(--pastel-pink-deep) !important;
+    background-color: var(--pastel-pink-soft);
+    transform: translateY(-2px);
+}
+
+/* 상단 카테고리 선택(Active) 시 해당 카테고리만 폰트 색상 및 스타일 변경 */
+.navbar-nav .nav-link.active {
+    color: var(--pastel-pink-deep) !important;
+    background-color: var(--pastel-pink-soft) !important;
+    text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8);
 }
 
 .search-box {
-    width: 200px;
+    width: 240px;
 }
 
-/* 5. 히어로 섹션 (그라디언트 배경: 네이비 #1a2a4a → 검은색 #0d1117, 슬로건 중앙 배치) */
+.search-box .form-control {
+    font-family: 'Noto Sans KR', -apple-system, sans-serif !important;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--pastel-pink-soft) !important;
+    background-color: #ffffff !important;
+    border-radius: 20px 0 0 20px !important;
+    padding: 0.45rem 0.9rem !important;
+    letter-spacing: normal !important;
+}
+
+.search-box .form-control::placeholder {
+    font-family: 'Noto Sans KR', sans-serif !important;
+    font-size: 0.9rem !important;
+    color: #a38f9d !important;
+}
+
+.search-box .form-control:focus {
+    border-color: var(--pastel-pink-main) !important;
+    box-shadow: 0 0 0 3px rgba(255, 133, 162, 0.25) !important;
+}
+
+.search-box .btn-outline-secondary {
+    border: 2px solid var(--pastel-pink-soft) !important;
+    border-left: none !important;
+    background-color: #ffffff !important;
+    color: var(--pastel-pink-deep) !important;
+    border-radius: 0 20px 20px 0 !important;
+    padding: 0.45rem 0.85rem !important;
+    font-size: 1rem !important;
+    transition: all 0.2s ease !important;
+}
+
+.search-box .btn-outline-secondary:hover {
+    background-color: var(--pastel-pink-soft) !important;
+    color: var(--pastel-pink-deep) !important;
+}
+
+/* 폼 컨트롤 및 입력 필드 전역 폰트 보정 (한글 깨짐 및 축소 방지) */
+input, textarea, select, button {
+    font-family: 'Noto Sans KR', 'Jua', -apple-system, sans-serif !important;
+}
+
+/* 5. 히어로 섹션 (아날로그 게임 픽셀/레트로 아케이드 파스텔 스테이지) */
 .hero-section {
-    background: linear-gradient(135deg, var(--brand-navy) 0%, #111a2e 55%, var(--brand-black) 100%) !important;
+    background: linear-gradient(135deg, #ffd3e2 0%, #ecdcf8 50%, #fff7cc 100%) !important;
     position: relative;
-    padding: 5rem 0;
+    padding: 4.5rem 0;
     text-align: center;
+    border-bottom: 4px solid var(--pastel-pink-deep);
+    overflow: hidden;
 }
 
-/* 히어로 내부 텍스트 및 그리드 중앙 정렬 */
+.hero-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.4) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+}
+
 .hero-section .row {
     justify-content: center !important;
     text-align: center !important;
@@ -77,23 +201,9 @@ body {
     text-align: center !important;
 }
 
-.hero-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 50% 30%, rgba(255, 107, 91, 0.15), transparent 70%);
-    pointer-events: none;
-}
-
-.min-vh-50 {
-    min-height: 45vh;
-}
-
-/* 슬로건 텍스트 커스텀 */
+/* 히어로 타이틀 */
 .hero-section h1 {
-    font-size: 0 !important; /* 기존 제목 텍스트 숨김 */
+    font-size: 0 !important;
     margin-bottom: 1.5rem !important;
     color: transparent !important;
 }
@@ -102,47 +212,55 @@ body {
     display: none !important;
 }
 
-/* "당신의 일상을 스타일리시하게" 슬로건 중앙 배치 (메인 타이틀) */
 .hero-section h1::before {
-    content: "당신의 일상을 스타일리시하게";
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 3.2rem;
+    content: "🎮 핑크빛 감성의 데일리룩 🎀";
+    font-family: 'Jua', 'Gaegu', sans-serif;
+    font-size: 3.1rem;
     font-weight: 800;
-    color: #ffffff;
+    color: #432837;
     display: block;
-    line-height: 1.25;
-    letter-spacing: -0.5px;
+    line-height: 1.3;
+    text-shadow: 3px 3px 0px #ffffff, 5px 5px 0px #fbcfe8;
     margin-bottom: 0.75rem;
 }
 
 .hero-section h1::after {
-    content: "VIBE FASHION";
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
+    content: "♡ VIBE RETRO FASHION ♡";
+    font-family: 'Jua', cursive;
+    font-size: 1.8rem;
     font-weight: 700;
     letter-spacing: 2px;
-    background: linear-gradient(90deg, #ffffff 0%, var(--brand-coral) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--pastel-pink-deep);
+    background: #ffffff;
+    padding: 4px 22px;
+    border-radius: 30px;
+    border: 3px solid #ff85a2;
+    box-shadow: 3px 3px 0px #e2d9f3;
     display: inline-block;
 }
 
-/* 히어로 액션 버튼 그룹 중앙 정렬 */
+.hero-section p.lead {
+    color: #5d4253 !important;
+    font-size: 1.15rem;
+    font-weight: 600;
+    text-shadow: 1px 1px 0px #ffffff;
+}
+
+/* 히어로 버튼 - 아날로그 게임 푸시 버튼 스타일 */
 .hero-section .d-flex.flex-wrap {
     justify-content: center !important;
     align-items: center !important;
 }
 
-/* "지금 쇼핑하기" CTA 버튼 (코랄색 #ff6b5b) */
 .hero-section .btn-primary {
-    background-color: var(--brand-coral) !important;
-    border-color: var(--brand-coral) !important;
+    background-color: var(--pastel-pink-deep) !important;
+    border: 3px solid #2b1f29 !important;
     color: transparent !important;
-    font-weight: 700 !important;
     font-size: 0 !important;
-    padding: 0.75rem 2rem !important;
-    box-shadow: 0 8px 20px rgba(255, 107, 91, 0.35) !important;
-    transition: all 0.25s ease-in-out;
+    padding: 0.75rem 2.2rem !important;
+    border-radius: 30px !important;
+    box-shadow: 4px 4px 0px #2b1f29 !important;
+    transition: all 0.15s ease-in-out;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -153,220 +271,357 @@ body {
 }
 
 .hero-section .btn-primary::after {
-    content: "지금 쇼핑하기";
-    font-size: 1.05rem !important;
-    font-family: 'Noto Sans KR', sans-serif;
+    content: "▶ 지금 쇼핑하기 ♬";
+    font-size: 1.15rem !important;
+    font-family: 'Jua', sans-serif;
     font-weight: 700;
     color: #ffffff !important;
     display: inline-block;
 }
 
 .hero-section .btn-primary:hover {
-    background-color: var(--brand-coral-hover) !important;
-    border-color: var(--brand-coral-hover) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(255, 107, 91, 0.45) !important;
+    transform: translate(2px, 2px) !important;
+    box-shadow: 2px 2px 0px #2b1f29 !important;
+    background-color: #ff2d6c !important;
+}
+
+.hero-section .btn-outline-light {
+    background-color: var(--pastel-yellow) !important;
+    border: 3px solid #2b1f29 !important;
+    color: #2b1f29 !important;
+    font-family: 'Jua', sans-serif;
+    font-size: 1.15rem;
+    border-radius: 30px !important;
+    box-shadow: 4px 4px 0px #2b1f29 !important;
+    padding: 0.75rem 2rem !important;
+    transition: all 0.15s ease-in-out;
 }
 
 .hero-section .btn-outline-light:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    color: #ffffff !important;
+    transform: translate(2px, 2px) !important;
+    box-shadow: 2px 2px 0px #2b1f29 !important;
+    background-color: var(--pastel-yellow-deep) !important;
+    color: #2b1f29 !important;
 }
 
-/* 6. 섹션 타이틀 및 구분선 */
+/* 6. 쇼핑몰 특장점 뱃지 섹션 (연노랑 & 연보라 파스텔 큐브) */
+#benefits {
+    background-color: #ffffff !important;
+    border-bottom: 3px dashed #ffd1dc !important;
+}
+
+#benefits .col-6.col-md-3 > div {
+    background-color: #fffbfa;
+    border: 2px solid #ffe1e8;
+    border-radius: 16px;
+    padding: 12px 8px;
+    box-shadow: 3px 3px 0px var(--pastel-purple);
+    transition: transform 0.2s ease;
+}
+
+#benefits .col-6.col-md-3 > div:hover {
+    transform: translateY(-3px);
+    background-color: var(--pastel-pink-soft);
+}
+
+/* 7. 상품 카드 및 타이틀 (귀여운 카트리지 & 레트로 팝 스타일) */
 .text-primary {
-    color: var(--brand-coral) !important;
-}
-
-.bg-primary {
-    background-color: var(--brand-coral) !important;
+    color: var(--pastel-pink-deep) !important;
 }
 
 .divider {
-    width: 48px;
-    height: 4px;
-    border-radius: 2px;
-    background-color: var(--brand-coral) !important;
+    width: 60px;
+    height: 6px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #ff85a2, #fcd34d, #b39ddb) !important;
 }
 
-.extra-small {
-    font-size: 0.75rem;
-}
-
-/* 7. 상품 카드 (호버 시 그림자 강화 + 2% 확대, 가격 굵기 증가, 할인 배지 코랄 배경) */
 .product-card {
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    background: #ffffff;
-    border: 1px solid var(--brand-gray-border) !important;
-    border-radius: var(--border-radius-card) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04) !important;
+    background: #ffffff !important;
+    border: 3px solid #fecdd3 !important;
+    border-radius: 24px !important;
+    box-shadow: 5px 5px 0px #edd8f8 !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    overflow: hidden;
 }
 
-/* 카드 호버 시: 그림자 대폭 강화 + 2% 확대 (scale 1.02) */
 .product-card:hover {
-    transform: scale(1.02) !important;
-    box-shadow: 0 20px 35px rgba(26, 42, 74, 0.16) !important;
-    border-color: rgba(255, 107, 91, 0.4) !important;
+    transform: translateY(-6px) !important;
+    box-shadow: 7px 7px 0px #ffb3c6 !important;
+    border-color: #ff85a2 !important;
 }
 
 /* 상품 이미지 컨테이너 */
 .product-img-wrapper {
     height: 320px;
     overflow: hidden;
-    background-color: var(--brand-gray-light);
-    border-top-left-radius: var(--border-radius-card);
-    border-top-right-radius: var(--border-radius-card);
+    background-color: #fff1f5;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    position: relative;
 }
 
 .product-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    transition: transform 0.4s ease;
 }
 
 .product-card:hover .product-img {
-    transform: scale(1.05);
+    transform: scale(1.06);
 }
 
-/* 할인 배지 및 상태 뱃지 (코랄 #ff6b5b 배경, 흰색 텍스트) */
+/* 뱃지 스타일 (레트로 픽셀 게임 칩 느낌) */
 .product-img-wrapper .badge,
+.badge.bg-dark,
 .badge.bg-danger,
-.badge.bg-primary,
-.badge.bg-success,
-.badge.bg-warning {
-    background-color: var(--brand-coral) !important;
+.badge.bg-primary {
+    background-color: var(--pastel-pink-deep) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 10px rgba(255, 107, 91, 0.35) !important;
+    border: 2px solid #ffffff;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.15) !important;
+    border-radius: 14px !important;
 }
 
-/* 위시리스트 버튼 */
+.badge.bg-secondary {
+    background-color: var(--pastel-purple-deep) !important;
+    color: #ffffff !important;
+    border-radius: 14px !important;
+}
+
+/* 위시리스트 하트 버튼 (사랑스러운 핑크 푸시 버튼) */
 .btn-wishlist {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    transition: transform 0.2s ease, background-color 0.2s ease;
+    border: 2px solid #ffccd8 !important;
+    background-color: #ffffff !important;
+    box-shadow: 2px 2px 0px #fbcfe8 !important;
+    border-radius: 50% !important;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .btn-wishlist:hover {
-    transform: scale(1.1);
-    background-color: #fff0ee !important;
+    transform: scale(1.15) !important;
+    background-color: #ffe4ec !important;
+    border-color: #ff85a2 !important;
+}
+
+.btn-wishlist i {
+    font-size: 1.2rem;
+    color: #ff8da1 !important;
 }
 
 .btn-wishlist.active i {
-    color: var(--brand-coral) !important;
+    color: #ff2d6c !important;
 }
 
-/* 가격 텍스트 굵기 증가 (font-weight: 900) */
+/* 상품명 & 가격 */
+.product-card .card-title {
+    font-size: 1.15rem !important;
+    color: #2b1f29 !important;
+}
+
 .product-card .card-body .h5.fw-bolder,
 .product-card .card-body .h5 {
-    font-weight: 900 !important;
-    color: var(--brand-navy) !important;
-    font-size: 1.35rem;
+    font-weight: 800 !important;
+    color: var(--pastel-pink-deep) !important;
+    font-size: 1.45rem;
     letter-spacing: -0.5px;
 }
 
-/* 장바구니 담기 버튼 커스텀 */
+/* 장바구니 담기 버튼 (아날로그 게임 컨트롤 버튼 룩) */
 .btn-add-cart {
-    background-color: var(--brand-navy) !important;
-    border-color: var(--brand-navy) !important;
+    background-color: var(--pastel-pink-main) !important;
+    border: 2px solid #2b1f29 !important;
     color: #ffffff !important;
-    font-weight: 600;
-    transition: all 0.2s ease;
+    font-family: 'Jua', sans-serif;
+    font-size: 1.1rem;
+    box-shadow: 3px 3px 0px #2b1f29 !important;
+    border-radius: 25px !important;
+    transition: all 0.15s ease;
 }
 
 .btn-add-cart:hover {
-    background-color: var(--brand-coral) !important;
-    border-color: var(--brand-coral) !important;
+    background-color: var(--pastel-pink-deep) !important;
+    color: #ffffff !important;
+    transform: translate(2px, 2px) !important;
+    box-shadow: 1px 1px 0px #2b1f29 !important;
+}
+
+/* 전역 버튼 및 Bootstrap 테마 오버라이드 */
+.btn-primary {
+    background-color: var(--pastel-pink-deep) !important;
+    border-color: #2b1f29 !important;
     color: #ffffff !important;
 }
 
-/* 2줄 말줄임 처리 */
-.text-truncate-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #ff2d6c !important;
+    border-color: #2b1f29 !important;
+    color: #ffffff !important;
 }
 
-/* 8. 반응형 레이아웃: 카드 1열 → 4열 자동 조정 및 모바일(≤768px) 최적화 */
-/* 데스크톱(≥992px): 4열 그리드 유지 */
-@media (min-width: 992px) {
-    #products .row.g-4 > div {
-        flex: 0 0 25% !important;
-        max-width: 25% !important;
-    }
+/* 검색 페이지 통합 캡슐형 검색 바 (일체형 핑크 테마) */
+.search-bar-unified .input-group {
+    background-color: #ffffff !important;
+    border: 2.5px solid var(--pastel-pink-soft) !important;
+    border-radius: 50px !important;
+    padding: 4px 6px 4px 20px !important;
+    box-shadow: 0 4px 16px rgba(255, 133, 162, 0.15) !important;
+    transition: all 0.25s ease !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
-/* 태블릿 (769px ~ 991px): 2열 그리드 */
-@media (min-width: 769px) and (max-width: 991px) {
-    #products .row.g-4 > div {
-        flex: 0 0 50% !important;
-        max-width: 50% !important;
-    }
+.search-bar-unified:focus-within .input-group {
+    border-color: var(--pastel-pink-main) !important;
+    box-shadow: 0 6px 20px rgba(255, 133, 162, 0.28) !important;
 }
 
-/* 모바일 화면 (≤768px): 레이아웃 깨짐 없이 1열 자동 전환 */
-@media (max-width: 768px) {
-    .hero-section {
-        padding: 3rem 1rem !important;
-    }
-
-    .hero-section h1 {
-        font-size: 2.1rem !important;
-    }
-
-    .hero-section h1::after {
-        font-size: 1.3rem !important;
-        margin-top: 0.35rem;
-    }
-
-    .hero-section p.lead {
-        font-size: 0.95rem;
-        margin-bottom: 1.5rem !important;
-    }
-
-    /* 상품 카드 1열 배치 */
-    #products .row.g-4 > div {
-        flex: 0 0 100% !important;
-        max-width: 100% !important;
-        margin-bottom: 1rem;
-    }
-
-    .product-img-wrapper {
-        height: 280px !important;
-    }
-
-    .search-box {
-        display: none !important;
-    }
+.search-bar-unified .form-control {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-family: 'Noto Sans KR', sans-serif !important;
+    font-size: 1.02rem !important;
+    color: var(--text-primary) !important;
+    padding: 0.5rem 0.5rem !important;
 }
 
-/* 9. 프로모션 배너 및 푸터 */
+.search-bar-unified .form-control:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.search-bar-unified .form-control::placeholder {
+    color: #b09ba9 !important;
+    font-size: 0.95rem !important;
+}
+
+.search-bar-unified .btn-search-submit {
+    background-color: var(--pastel-pink-deep) !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-family: 'Jua', sans-serif !important;
+    font-size: 1.05rem !important;
+    border-radius: 35px !important;
+    padding: 0.55rem 1.6rem !important;
+    box-shadow: 0 2px 8px rgba(255, 84, 131, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+.search-bar-unified .btn-search-submit:hover {
+    background-color: #ff2d6c !important;
+    transform: scale(1.03) !important;
+    box-shadow: 0 4px 12px rgba(255, 84, 131, 0.45) !important;
+}
+
+/* 레트로 모달 & 카드 팝업 */
+.retro-card {
+    background: #ffffff !important;
+    border: 3.5px solid #2b1f29 !important;
+    border-radius: 24px !important;
+    box-shadow: 6px 6px 0px var(--pastel-pink-deep) !important;
+}
+
+.retro-btn {
+    background-color: var(--pastel-pink-deep) !important;
+    border: 2.5px solid #2b1f29 !important;
+    color: #ffffff !important;
+    border-radius: 20px !important;
+    box-shadow: 3px 3px 0px #2b1f29 !important;
+    font-family: 'Jua', sans-serif;
+    font-size: 1.05rem;
+    padding: 0.45rem 2rem !important;
+    min-width: 120px;
+    transition: all 0.1s ease;
+}
+
+.retro-btn:hover {
+    background-color: #ff2d6c !important;
+    transform: translate(2px, 2px) !important;
+    box-shadow: 1px 1px 0px #2b1f29 !important;
+}
+
+/* 프로모션 배너 (연보라 & 레트로 핑크 스테이지) */
 .promo-banner {
-    background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-black) 100%) !important;
+    background: linear-gradient(135deg, #f3e8ff 0%, #fce7f3 50%, #fef3c7 100%) !important;
+    border: 3px solid #f472b6 !important;
+    border-radius: 30px !important;
+    box-shadow: 6px 6px 0px #e9d5ff !important;
+}
+
+.promo-banner h3 {
+    color: #3b1d30 !important;
+    text-shadow: 2px 2px 0px #ffffff;
+}
+
+.promo-banner p {
+    color: #5c3b4f !important;
 }
 
 .promo-banner .badge {
-    background-color: var(--brand-coral) !important;
+    background-color: var(--pastel-yellow-deep) !important;
+    color: #2b1f29 !important;
+    border: 2px solid #2b1f29;
+    box-shadow: 2px 2px 0px #2b1f29;
+}
+
+.promo-banner .btn-light {
+    background-color: var(--pastel-pink-deep) !important;
+    border: 2px solid #2b1f29 !important;
     color: #ffffff !important;
+    box-shadow: 3px 3px 0px #2b1f29 !important;
+    font-family: 'Jua', sans-serif;
+    font-size: 1.1rem;
+    transition: all 0.15s ease;
 }
 
+.promo-banner .btn-light:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0px #2b1f29;
+}
+
+/* 8. 푸터 */
 footer {
-    background-color: var(--brand-black) !important;
+    background: #342230 !important;
+    border-top: 4px solid var(--pastel-pink-main) !important;
 }
 
-/* 10. 소셜 링크 호버 효과 */
-.social-icon {
-    transition: color 0.2s ease;
+footer h5, footer h6 {
+    color: #ffe4ec !important;
 }
 
-.social-icon:hover {
-    color: var(--brand-coral) !important;
+footer p, footer small, footer a {
+    color: #d1b8cb !important;
+}
+
+footer a:hover {
+    color: var(--pastel-yellow) !important;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .hero-section h1::before {
+        font-size: 2.1rem !important;
+    }
+    .hero-section h1::after {
+        font-size: 1.3rem !important;
+    }
+    .hero-section p.lead {
+        font-size: 0.95rem;
+    }
+    #products .row.g-4 > div {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+    .product-img-wrapper {
+        height: 280px !important;
+    }
 }

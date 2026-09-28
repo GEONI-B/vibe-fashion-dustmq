@@ -70,15 +70,35 @@ function loadCartCount() {
 
 /**
  * 로그인 필요 모달 팝업 표시 함수
+ * @param {string} customMessage - 커스텀 알림 문구 (기본: '로그인해야 합니다')
  */
-function showLoginModal() {
+function showLoginModal(customMessage) {
+    const message = customMessage || '로그인해야 합니다';
+    const textEl = document.getElementById('loginAlertModalText');
+    if (textEl) {
+        textEl.textContent = message;
+    }
+
     const modalEl = document.getElementById('loginAlertModal');
     if (modalEl && typeof bootstrap !== 'undefined') {
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     } else {
-        alert('로그인 해야 합니다');
+        alert(message);
     }
+}
+
+/**
+ * 상단 관심 상품(하트 아이콘) 네비게이션 클릭 처리
+ * 로그인하지 않은 경우 "로그인해야 이용 가능한 페이지입니다" 모달 표시
+ * 로그인한 경우 /wishlist 페이지로 이동
+ */
+function handleWishlistNav() {
+    if (!window.IS_LOGGED_IN) {
+        showLoginModal('로그인해야 이용 가능한 페이지입니다');
+        return;
+    }
+    window.location.href = '/wishlist';
 }
 
 /**
@@ -89,13 +109,58 @@ function showLoginModal() {
  */
 function toggleWishlist(button, productName) {
     if (!window.IS_LOGGED_IN) {
-        showLoginModal();
+        showLoginModal('로그인해야 합니다');
         return false;
     }
 
+    // 서버 위시리스트 토글 API 연동 (카드의 addToCart 호출과 유사한 구조)
+    const cardEl = button.closest('.product-card');
+    const cartBtn = cardEl ? cardEl.querySelector('.btn-add-cart') : null;
+    let productId = null;
+    if (cartBtn) {
+        const onclickAttr = cartBtn.getAttribute('onclick') || '';
+        const match = onclickAttr.match(/addToCart\('([^']+)'/);
+        if (match) {
+            productId = match[1];
+        }
+    }
+
+    if (productId) {
+        fetch('/api/wishlist/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const icon = button.querySelector('i');
+                if (data.is_added) {
+                    button.classList.add('active');
+                    if (icon) {
+                        icon.classList.remove('bi-heart');
+                        icon.classList.add('bi-heart-fill');
+                    }
+                    console.log(`[관심상품 등록] ${productName}`);
+                } else {
+                    button.classList.remove('active');
+                    if (icon) {
+                        icon.classList.remove('bi-heart-fill');
+                        icon.classList.add('bi-heart');
+                    }
+                    console.log(`[관심상품 해제] ${productName}`);
+                }
+            } else if (data.need_login) {
+                showLoginModal('로그인해야 이용 가능한 페이지입니다');
+            }
+        })
+        .catch(err => console.error('위시리스트 토글 통신 실패:', err));
+        return;
+    }
+
+    // 기본 UI 토글 fallback
     const icon = button.querySelector('i');
     button.classList.toggle('active');
-
     if (button.classList.contains('active')) {
         icon.classList.remove('bi-heart');
         icon.classList.add('bi-heart-fill');
@@ -107,8 +172,53 @@ function toggleWishlist(button, productName) {
     }
 }
 
+/**
+ * 상단 네비게이션 활성화(Active) 상태 관리 함수
+ * 현재 페이지 경로 및 해시에 맞춰 해당 카테고리 폰트 색상을 변경하고, 클릭 시 즉시 활성화합니다.
+ */
+function initNavbarActive() {
+    const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
+    if (!navLinks.length) return;
+
+    const currentPath = window.location.pathname;
+    const currentHash = window.location.hash;
+
+    // 초기 활성화 상태 결정
+    let matchedLink = null;
+    navLinks.forEach(link => {
+        const href = link.getAttribute('href') || '';
+        // 해시가 있는 경우 우선 매칭 (예: #products, #collections)
+        if (currentHash && href.includes(currentHash)) {
+            matchedLink = link;
+        } else if (!currentHash && !matchedLink) {
+            if (href === currentPath || (currentPath === '/' && (href === '/' || href.endsWith('/')))) {
+                matchedLink = link;
+            }
+        }
+    });
+
+    // 기본값: 홈
+    if (!matchedLink && currentPath === '/') {
+        matchedLink = navLinks[0];
+    }
+
+    if (matchedLink) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        matchedLink.classList.add('active');
+    }
+
+    // 클릭 시 해당 카테고리만 활성화
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            navLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+}
+
 // 문서 로드 완료 시 초기화 작업
 document.addEventListener('DOMContentLoaded', () => {
     loadCartCount();
+    initNavbarActive();
     console.log('VIBE FASHION 웹앱이 성공적으로 로드되었습니다.');
 });

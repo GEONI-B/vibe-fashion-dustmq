@@ -7,7 +7,7 @@ Supabase에서 상품 데이터를 조회하여 템플릿에 전달합니다.
 import os
 import sys
 import logging
-from flask import Blueprint, render_template, session, request, jsonify
+from flask import Blueprint, render_template, session, request, jsonify, redirect, url_for, flash
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -248,6 +248,67 @@ def new_arrivals():
 
 
 # ------------------------------------------------------------------------------
+# 상품 검색 (SEARCH) 라우트
+# ------------------------------------------------------------------------------
+@main_bp.route('/search')
+def search():
+    """
+    상품명 및 설명 키워드 검색 라우트
+    """
+    query = request.args.get('q', '').strip()
+    formatted_products = []
+
+    if query:
+        try:
+            supabase = get_supabase_client()
+            # 상품명 또는 설명에서 검색 (ilike)
+            response = (
+                supabase.table('products')
+                .select('*')
+                .or_(f"name.ilike.%{query}%,description.ilike.%{query}%")
+                .execute()
+            )
+            raw_products = response.data or []
+
+            for item in raw_products:
+                cat_info = CATEGORY_TYPE_MAP.get(item.get('category_id'), {'name': '기타', 'code': 'etc', 'badge_color': 'dark'})
+                price = float(item.get('price') or 0)
+                sale_price = item.get('sale_price')
+
+                if sale_price is not None and float(sale_price) < price:
+                    sale_num = int(float(sale_price))
+                    orig_num = int(price)
+                    discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
+                    display_price = f"{sale_num:,}원"
+                    original_price_formatted = f"{orig_num:,}원"
+                    has_discount = True
+                else:
+                    sale_num = int(price)
+                    discount_pct = 0
+                    display_price = f"{sale_num:,}원"
+                    original_price_formatted = None
+                    has_discount = False
+
+                formatted_products.append({
+                    "id": item.get('id'),
+                    "name": item.get('name', '상품명 없음'),
+                    "slug": item.get('slug'),
+                    "category_name": cat_info['name'],
+                    "price": display_price,
+                    "original_price": original_price_formatted,
+                    "has_discount": has_discount,
+                    "discount_pct": discount_pct,
+                    "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
+                    "description": item.get('description', ''),
+                    "status": item.get('status', 'active')
+                })
+        except Exception as e:
+            logger.error("상품 검색 중 오류 발생: %s", e, exc_info=True)
+
+    return render_template('search.html', products=formatted_products, query=query)
+
+
+# ------------------------------------------------------------------------------
 # 회원 혜택 (MEMBERSHIP BENEFITS) 라우트
 # ------------------------------------------------------------------------------
 GRADE_BENEFITS = [
@@ -363,6 +424,103 @@ def benefits():
         grade_benefits=GRADE_BENEFITS,
         user_info=user_info
     )
+
+
+# ------------------------------------------------------------------------------
+# 위시리스트(관심 상품) 헬퍼 및 라우트
+# ------------------------------------------------------------------------------
+def _get_wishlist():
+    """세션에서 위시리스트 리스트를 반환합니다. 구조: [product_id, ...]"""
+    if 'wishlist' not in session:
+        session['wishlist'] = []
+    return session['wishlist']
+
+
+@main_bp.route('/wishlist')
+def wishlist_view():
+    """
+    관심 상품 페이지 렌더링 라우트
+    로그인하지 않은 경우 로그인 페이지로 리다이렉트 (플래시 안내)
+    """
+    if not session.get('user'):
+        flash('로그인해야 이용 가능한 페이지입니다.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    wishlist_ids = _get_wishlist()
+    products = []
+
+    if wishlist_ids:
+        try:
+            supabase = get_supabase_client()
+            response = supabase.table('products').select('*').in_('id', wishlist_ids).execute()
+            raw_products = response.data or []
+
+            for item in raw_products:
+                cat_info = CATEGORY_TYPE_MAP.get(item.get('category_id'), {'name': '기타', 'code': 'etc', 'badge_color': 'dark'})
+                price = float(item.get('price') or 0)
+                sale_price = item.get('sale_price')
+
+                if sale_price is not None and float(sale_price) < price:
+                    sale_num = int(float(sale_price))
+                    orig_num = int(price)
+                    discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
+                    display_price = f"{sale_num:,}원"
+                    original_price_formatted = f"{orig_num:,}원"
+                    has_discount = True
+                else:
+                    sale_num = int(price)
+                    discount_pct = 0
+                    display_price = f"{sale_num:,}원"
+                    original_price_formatted = None
+                    has_discount = False
+
+                products.append({
+                    "id": item.get('id'),
+                    "name": item.get('name', '상품명 없음'),
+                    "slug": item.get('slug'),
+                    "category_name": cat_info['name'],
+                    "price": display_price,
+                    "original_price": original_price_formatted,
+                    "has_discount": has_discount,
+                    "discount_pct": discount_pct,
+                    "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
+                    "description": item.get('description', ''),
+                    "status": item.get('status', 'active')
+                })
+        except Exception as e:
+            logger.error("위시리스트 상품 조회 실패: %s", e, exc_info=True)
+
+    return render_template('wishlist.html', products=products)
+
+
+@main_bp.route('/api/wishlist/toggle', methods=['POST'])
+def toggle_wishlist_api():
+    """
+    관심 상품 토글 API (세션 기반)
+    """
+    if not session.get('user'):
+        return jsonify({"success": False, "message": "로그인해야 이용 가능한 기능입니다.", "need_login": True}), 401
+
+    data = request.get_json(silent=True) or {}
+    product_id = data.get('product_id')
+
+    if not product_id:
+        return jsonify({"success": False, "message": "상품 아이디가 필요합니다."}), 400
+
+    wishlist = _get_wishlist()
+    if product_id in wishlist:
+        wishlist.remove(product_id)
+        is_added = False
+    else:
+        wishlist.append(product_id)
+        is_added = True
+
+    session.modified = True
+    return jsonify({
+        "success": True,
+        "is_added": is_added,
+        "wishlist_count": len(wishlist)
+    })
 
 
 # ------------------------------------------------------------------------------

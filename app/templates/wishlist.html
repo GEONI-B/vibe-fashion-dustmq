@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}관심 상품 - VIBE FASHION{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-white border-bottom">
+    <div class="container text-center">
+        <span class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-semibold mb-3">
+            💖 MY WISHLIST
+        </span>
+        <h2 class="fw-bolder mb-2">내가 찜한 관심 상품</h2>
+        <p class="text-muted small">
+            마음에 들어 찜해둔 상품 목록입니다. 언제든 바로 장바구니에 담을 수 있어요!
+        </p>
+    </div>
+</section>
+
+<section class="py-5 bg-light min-vh-75">
+    <div class="container">
+        {% if products %}
+        <div class="row g-4">
+            {% for item in products %}
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3" id="wishlist-col-{{ item.id }}">
+                <div class="card h-100 product-card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+                    <!-- 상품 이미지 영역 -->
+                    <div class="position-relative product-img-wrapper" style="aspect-ratio: 4/5; overflow: hidden;">
+                        <img src="{{ item.thumbnail_url }}" class="card-img-top product-img w-100 h-100 object-fit-cover" 
+                             alt="{{ item.name }}" loading="lazy">
+                        
+                        <!-- 할인 뱃지 -->
+                        <div class="position-absolute top-0 start-0 m-3 d-flex flex-column gap-1">
+                            {% if item.has_discount %}
+                            <span class="badge bg-danger rounded-pill px-3 py-2 fw-bold shadow-sm">
+                                {{ item.discount_pct }}% OFF
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- 위시리스트 해제 버튼 (관심 상품 페이지에서는 항상 active) -->
+                        <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist active"
+                                onclick="removeWishlistItem('{{ item.id }}', '{{ item.name }}')" title="관심 상품 해제">
+                            <i class="bi bi-heart-fill"></i>
+                        </button>
+                    </div>
+
+                    <!-- 상품 본문 정보 -->
+                    <div class="card-body d-flex flex-column p-4">
+                        {% if item.category_name %}
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark border rounded-pill px-2 py-1 small fw-semibold">
+                                {{ item.category_name }}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        <h5 class="card-title fw-bold fs-6 mb-2 text-truncate" title="{{ item.name }}">
+                            {{ item.name }}
+                        </h5>
+
+                        {% if item.description %}
+                        <p class="card-text text-secondary small flex-grow-1 text-truncate-2 mb-3">
+                            {{ item.description }}
+                        </p>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {% if item.has_discount %}
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted text-decoration-line-through small">{{ item.original_price }}</span>
+                                <span class="text-danger fw-bold small">{{ item.discount_pct }}%</span>
+                            </div>
+                            {% endif %}
+                            <div class="d-flex align-items-baseline">
+                                <span class="h5 fw-bolder text-dark mb-0">{{ item.price }}</span>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-auto">
+                            <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2" 
+                                    onclick="addToCart('{{ item.id }}', '{{ item.name }}')">
+                                <i class="bi bi-cart-plus me-1"></i>장바구니 담기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- 찜한 상품이 없을 때 -->
+        <div class="row justify-content-center py-5">
+            <div class="col-12 col-md-6 text-center py-5">
+                <i class="bi bi-heart display-1 text-muted opacity-50 mb-4 d-block"></i>
+                <h4 class="fw-bold mb-2">찜한 관심 상품이 없습니다</h4>
+                <p class="text-muted mb-4">
+                    마음에 드는 상품의 하트(♡) 버튼을 눌러 관심 상품에 추가해 보세요!
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary rounded-pill px-4 py-2 fw-semibold">
+                        인기 상품 보러가기
+                    </a>
+                    <a href="{{ url_for('main.new_arrivals') }}" class="btn btn-outline-dark rounded-pill px-4 py-2 fw-semibold">
+                        신상품 둘러보기
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+function removeWishlistItem(productId, productName) {
+    fetch('/api/wishlist/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const col = document.getElementById(`wishlist-col-${productId}`);
+            if (col) {
+                col.remove();
+            }
+            // 모든 상품이 제거되었는지 확인
+            const remaining = document.querySelectorAll('[id^="wishlist-col-"]');
+            if (remaining.length === 0) {
+                location.reload();
+            }
+        }
+    })
+    .catch(err => console.error('위시리스트 삭제 에러:', err));
+}
+</script>
+{% endblock %}
