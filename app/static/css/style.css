@@ -31,6 +31,32 @@
     --border-radius-card: 20px;
 }
 
+/* 비밀번호 표시/숨김 토글 버튼 스타일 및 브라우저 기본 눈 아이콘 숨김 */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+input[type="password"]::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+}
+.password-toggle-btn {
+    border-color: #dee2e6;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.password-toggle-btn:hover {
+    background-color: #e9ecef;
+    color: #212529;
+}
+.password-toggle-btn:focus {
+    box-shadow: none;
+}
+
 /* 전역 베이스 스타일 */
 body {
     font-family: 'Jua', 'Noto Sans KR', -apple-system, sans-serif;

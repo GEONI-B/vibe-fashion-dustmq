@@ -9,16 +9,13 @@ import re
 import logging
 from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from dotenv import load_dotenv
-from supabase import create_client, Client
+from app.supabase_client import get_supabase_client
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
 
 # auth 블루프린트 생성
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
-
-load_dotenv()
 
 # 한국어 에러 및 성공 메시지 매핑
 ERROR_MESSAGES = {
@@ -31,11 +28,13 @@ ERROR_MESSAGES = {
     'password_needs_digit': '비밀번호에 숫자를 1개 이상 포함해야 합니다.',
     'password_needs_special': '비밀번호에 특수문자를 1개 이상 포함해야 합니다.',
     'password_same_as_email': '이메일 주소와 동일한 비밀번호는 사용할 수 없습니다.',
+    'same_as_old_password': '이전에 사용하시던 비밀번호와 동일합니다. 새로운 비밀번호를 입력해 주세요.',
     'invalid_token': '유효하지 않거나 만료된 인증 링크입니다. 다시 시도해 주세요.',
     'login_required': '로그인이 필요한 서비스입니다.',
     'rate_limit': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
     'server_error': '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
-    'session_expired': '인증 세션이 만료되었습니다. 다시 비밀번호 재설정을 요청해 주세요.'
+    'session_expired': '인증 세션이 만료되었습니다. 다시 비밀번호 재설정을 요청해 주세요.',
+    'oauth_failed': '소셜 로그인 처리에 실패했습니다. 다시 시도해 주세요.'
 }
 
 SUCCESS_MESSAGES = {
@@ -44,6 +43,7 @@ SUCCESS_MESSAGES = {
     'reset_mail_sent': '비밀번호 재설정 링크를 입력하신 이메일로 전송했습니다.',
     'password_reset_success': '비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해 주세요.',
     'logged_out': '성공적으로 로그아웃되었습니다.',
+    'oauth_success': '카카오 계정으로 성공적으로 로그인되었습니다.'
 }
 
 
@@ -67,21 +67,69 @@ def validate_password_policy(password: str, email: str = "") -> str | None:
     return None
 
 
-def get_supabase_client(use_service_role: bool = False) -> Client:
+def get_site_url() -> str:
     """
-    환경 변수로부터 Supabase 클라이언트를 초기화하여 반환합니다.
-    use_service_role=True인 경우 관리자 권한 클라이언트를 반환합니다.
+    현재 접속 중인 사이트의 Base URL을 반환합니다.
+    1. SITE_URL 환경변수 우선 적용
+    2. 미설정 시 요청 헤더(X-Forwarded-Proto, host) 또는 request.host_url 기반 자동 감지
     """
-    supabase_url = os.getenv('SUPABASE_URL')
-    anon_key = os.getenv('SUPABASE_ANON_KEY')
-    service_key = os.getenv('SUPABASE_SERVICE_KEY')
+    env_site_url = os.getenv("SITE_URL")
+    if env_site_url:
+        return env_site_url.rstrip("/")
+    if request:
+        scheme = request.headers.get('X-Forwarded-Proto', request.scheme)
+        return f"{scheme}://{request.host}".rstrip("/")
+    return "http://localhost:5000"
 
-    key = service_key if (use_service_role and service_key) else anon_key
 
-    if not supabase_url or not key:
-        raise ValueError("SUPABASE_URL 또는 관련 KEY 환경 변수가 설정되지 않았습니다.")
+def _save_user_session(user, auth_session=None, auto_create_profile: bool = False) -> str:
+    """
+    Supabase user 객체 및 auth_session으로부터 세션을 설정하고 사용자 이름을 반환합니다.
+    profiles 테이블과의 동기화 및 생성을 일원화하여 처리합니다.
+    """
+    supabase = get_supabase_client()
+    provider = user.app_metadata.get('provider', '')
+    provider_kr = '카카오' if provider == 'kakao' else ''
 
-    return create_client(supabase_url, key)
+    profile_name = (
+        user.user_metadata.get('name')
+        or user.user_metadata.get('full_name')
+        or user.user_metadata.get('user_name')
+        or (user.email.split('@')[0] if user.email else f'{provider_kr or "회원"}')
+    )
+    user_grade = 'BRONZE'
+
+    try:
+        prof_res = supabase.table('profiles').select('name, grade').eq('id', user.id).maybe_single().execute()
+        if prof_res and prof_res.data:
+            profile_name = prof_res.data.get('name') or profile_name
+            user_grade = prof_res.data.get('grade') or user_grade
+        elif auto_create_profile:
+            supabase.table('profiles').insert({
+                'id': user.id,
+                'name': profile_name,
+                'grade': 'BRONZE'
+            }).execute()
+    except Exception as p_err:
+        logger.warning("프로필 동기화/조회 생략: %s", p_err)
+
+    session['user_id'] = user.id
+    session['user'] = {
+        'id': user.id,
+        'email': user.email or f"{user.id[:8]}@{provider or 'user'}.user",
+        'name': profile_name,
+        'grade': user_grade
+    }
+    if auth_session:
+        session['access_token'] = auth_session.access_token
+
+    return profile_name
+
+
+def _clear_auth_session():
+    """인증 관련 세션 키를 일괄 정리합니다."""
+    for key in ('user_id', 'user', 'access_token', 'recovery_access_token', 'recovery_refresh_token'):
+        session.pop(key, None)
 
 
 def login_required(f):
@@ -90,10 +138,7 @@ def login_required(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        user_id = session.get('user_id') or (
-            session.get('user', {}).get('id') if isinstance(session.get('user'), dict) else None
-        )
-        if not user_id:
+        if not session.get('user_id') and not (isinstance(session.get('user'), dict) and session.get('user', {}).get('id')):
             return redirect(url_for('auth.login', next=request.url, error='login_required'))
         return f(*args, **kwargs)
     return decorated_function
@@ -131,34 +176,10 @@ def login():
             auth_session = response.session
 
             if user:
-                # profiles 테이블에서 닉네임 및 회원 등급 조회
-                profile_name = (
-                    user.user_metadata.get('name')
-                    or user.user_metadata.get('full_name')
-                    or (user.email.split('@')[0] if user.email else '회원')
-                )
-                user_grade = 'BRONZE'
-                try:
-                    prof_res = supabase.table('profiles').select('name, grade').eq('id', user.id).maybe_single().execute()
-                    if prof_res and prof_res.data:
-                        profile_name = prof_res.data.get('name') or profile_name
-                        user_grade = prof_res.data.get('grade') or user_grade
-                except Exception as p_err:
-                    logger.warning("프로필 조회 생략: %s", p_err)
-
-                # Flask 세션에 사용자 정보 저장
-                session['user_id'] = user.id
-                session['user'] = {
-                    'id': user.id,
-                    'email': user.email,
-                    'name': profile_name,
-                    'grade': user_grade
-                }
-                if auth_session:
-                    session['access_token'] = auth_session.access_token
-
+                profile_name = _save_user_session(user, auth_session)
                 flash(f'{profile_name}님, 환영합니다!', 'success')
-                return redirect(next_url or url_for('main.index'))
+                safe_next = next_url if (next_url and next_url.startswith('/') and not next_url.startswith('//')) else None
+                return redirect(safe_next or url_for('main.index'))
 
         except Exception as e:
             error_msg = str(e).lower()
@@ -215,7 +236,7 @@ def signup():
         if password != password_confirm:
             return redirect(url_for('auth.signup', error='password_mismatch'))
 
-        site_url = os.getenv("SITE_URL", "http://localhost:5000").rstrip("/")
+        site_url = get_site_url()
         email_redirect_to = f"{site_url}/auth/confirm"
 
         try:
@@ -311,32 +332,7 @@ def confirm():
 
         user = auth_response.user
         auth_session = auth_response.session
-
-        # profiles 테이블 정보 확인
-        profile_name = (
-            user.user_metadata.get('name')
-            or user.user_metadata.get('full_name')
-            or (user.email.split('@')[0] if user.email else '회원')
-        )
-        user_grade = 'BRONZE'
-        try:
-            prof_res = supabase.table('profiles').select('name, grade').eq('id', user.id).maybe_single().execute()
-            if prof_res and prof_res.data:
-                profile_name = prof_res.data.get('name') or profile_name
-                user_grade = prof_res.data.get('grade') or user_grade
-        except Exception as p_err:
-            logger.warning("이메일 인증 후 프로필 조회 생략: %s", p_err)
-
-        # Flask 세션에 사용자 정보 저장
-        session['user_id'] = user.id
-        session['user'] = {
-            'id': user.id,
-            'email': user.email,
-            'name': profile_name,
-            'grade': user_grade
-        }
-        if auth_session:
-            session['access_token'] = auth_session.access_token
+        _save_user_session(user, auth_session)
 
         flash('이메일 인증이 성공적으로 완료되었습니다!', 'success')
         return redirect('/mypage')
@@ -359,7 +355,7 @@ def forgot_password():
         if not email:
             return redirect(url_for('auth.forgot_password', error='invalid_request'))
 
-        site_url = os.getenv("SITE_URL", "http://localhost:5000").rstrip("/")
+        site_url = get_site_url()
         redirect_to = f"{site_url}/auth/reset-password"
 
         try:
@@ -367,8 +363,11 @@ def forgot_password():
             supabase.auth.reset_password_for_email(email, options={"redirect_to": redirect_to})
             return redirect(url_for('auth.forgot_password', msg='reset_mail_sent', email=email))
         except Exception as e:
-            logger.error("비밀번호 재설정 메일 발송 오류: %s", e)
-            return redirect(url_for('auth.forgot_password', error='server_error'))
+            error_msg = str(e).lower()
+            logger.error("비밀번호 재설정 메일 발송 오류: %s (type: %s)", e, type(e))
+            if 'rate limit' in error_msg or 'too many requests' in error_msg:
+                return redirect(url_for('auth.forgot_password', error='rate_limit', email=email))
+            return redirect(url_for('auth.forgot_password', error='server_error', email=email))
 
     error_key = request.args.get('error')
     msg_key = request.args.get('msg')
@@ -449,7 +448,10 @@ def reset_password():
             return redirect(url_for('auth.login', msg='password_reset_success'))
 
         except Exception as e:
+            error_msg = str(e).lower()
             logger.error("새 비밀번호 설정 실패: %s", e)
+            if 'different from the old password' in error_msg or 'same password' in error_msg or 'should be different' in error_msg:
+                return redirect(url_for('auth.reset_password', error='same_as_old_password', token_hash=token_hash))
             return redirect(url_for('auth.reset_password', error='server_error', token_hash=token_hash))
 
     # GET 요청: URL 파라미터로 토큰 확인 및 세션 저장
@@ -495,6 +497,76 @@ def reset_password():
 
 
 # ------------------------------------------------------------------------------
+# [7] GET /auth/kakao - 카카오 로그인 리다이렉트
+# ------------------------------------------------------------------------------
+@auth_bp.route('/kakao')
+def kakao_login():
+    """
+    카카오 OAuth 로그인 페이지로 리다이렉트합니다.
+    """
+    if session.get('user_id') or session.get('user'):
+        return redirect(url_for('main.index'))
+
+    site_url = get_site_url()
+    redirect_to = f"{site_url}/auth/callback"
+
+    try:
+        supabase = get_supabase_client()
+        res = supabase.auth.sign_in_with_oauth({
+            "provider": "kakao",
+            "options": {
+                "redirect_to": redirect_to,
+                "scopes": "profile_nickname"
+            }
+        })
+        if res and res.url:
+            return redirect(res.url)
+        return redirect(url_for('auth.login', error='oauth_failed'))
+    except Exception as e:
+        logger.error("카카오 로그인 URL 생성 실패: %s", e)
+        return redirect(url_for('auth.login', error='oauth_failed'))
+
+
+# ------------------------------------------------------------------------------
+# [8] GET /auth/callback - OAuth 콜백 처리 (카카오)
+# ------------------------------------------------------------------------------
+@auth_bp.route('/callback', methods=['GET'])
+def callback():
+    """
+    Supabase OAuth 인증 완료 후 code 파라미터를 받아 세션을 교환하고 사용자 로그인 처리
+    """
+    code = request.args.get('code')
+    error = request.args.get('error')
+
+    if error:
+        logger.warning("OAuth 콜백 에러: %s, 설명: %s", error, request.args.get('error_description'))
+        return redirect(url_for('auth.login', error='oauth_failed'))
+
+    if not code:
+        return redirect(url_for('auth.login', error='invalid_token'))
+
+    try:
+        supabase = get_supabase_client()
+        auth_response = supabase.auth.exchange_code_for_session({
+            "auth_code": code
+        })
+
+        if not auth_response or not auth_response.user:
+            return redirect(url_for('auth.login', error='oauth_failed'))
+
+        user = auth_response.user
+        auth_session = auth_response.session
+        profile_name = _save_user_session(user, auth_session, auto_create_profile=True)
+
+        flash(f'{profile_name}님, 카카오 계정으로 로그인되었습니다!', 'success')
+        return redirect(url_for('main.index'))
+
+    except Exception as e:
+        logger.error("OAuth exchange_code_for_session 처리 실패: %s", e)
+        return redirect(url_for('auth.login', error='oauth_failed'))
+
+
+# ------------------------------------------------------------------------------
 # 기타 인증 관리: 로그아웃 및 회원탈퇴
 # ------------------------------------------------------------------------------
 @auth_bp.route('/logout')
@@ -508,12 +580,7 @@ def logout():
     except Exception as e:
         logger.warning("Supabase sign_out 경고: %s", e)
 
-    session.pop('user_id', None)
-    session.pop('user', None)
-    session.pop('access_token', None)
-    session.pop('recovery_access_token', None)
-    session.pop('recovery_refresh_token', None)
-
+    _clear_auth_session()
     return redirect(url_for('auth.login', msg='logged_out'))
 
 

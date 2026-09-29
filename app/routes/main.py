@@ -4,12 +4,10 @@
 Supabase에서 상품 데이터를 조회하여 템플릿에 전달합니다.
 """
 
-import os
-import sys
 import logging
 from flask import Blueprint, render_template, session, request, jsonify, redirect, url_for, flash
-from dotenv import load_dotenv
-from supabase import create_client, Client
+from app.supabase_client import get_supabase_client
+from app.routes.auth import login_required
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -17,21 +15,78 @@ logger = logging.getLogger(__name__)
 # 메인 블루프린트 생성
 main_bp = Blueprint('main', __name__)
 
-# .env 환경 변수 로드
-load_dotenv()
+# 카테고리 메타데이터 매핑
+CATEGORY_TYPE_MAP = {
+    1: {'name': '상의', 'code': 'top', 'badge_color': 'danger'},
+    2: {'name': '바지', 'code': 'pants', 'badge_color': 'secondary'},
+    3: {'name': '아우터', 'code': 'outer', 'badge_color': 'primary'},
+    4: {'name': '원피스', 'code': 'dress', 'badge_color': 'info'},
+    8: {'name': '치마', 'code': 'skirt', 'badge_color': 'warning'},
+    5: {'name': '양말', 'code': 'socks', 'badge_color': 'success'}
+}
+
+# 신상품 슬러그 목록 (메인 추천 4개 + 카테고리별 신상품)
+NEW_PRODUCT_SLUGS = [
+    # 메인 대표 신상품 4개
+    'basic-crop-tshirt',        # 상의 (category_id=1)
+    'wide-denim-pants',         # 바지 (category_id=2)
+    'overfit-cotton-jacket',    # 아우터 (category_id=3)
+    'floral-midi-dress',        # 원피스 (category_id=4)
+    # 바지 신상품 3개 (category_id=2)
+    'new-wide-denim', 'new-pin-tuck-slacks', 'new-cargo-jogger-pants',
+    # 원피스 신상품 4개 (category_id=4)
+    'new-french-floral-dress', 'new-linen-shirt-dress', 'new-square-neck-mini-dress', 'new-slim-knit-dress',
+    # 치마 신상품 4개 (category_id=8)
+    'new-pleats-tennis-skirt', 'new-aline-denim-skirt', 'new-mermaid-slit-skirt', 'new-wrap-check-skirt',
+    # 양말 신상품 2개 (category_id=5)
+    'new-cotton-ribbed-socks-5pack', 'new-retro-stripe-crew-socks-3pack'
+]
 
 
-def get_supabase_client() -> Client:
+def _format_product(item: dict, cat_info: dict | None = None) -> dict:
     """
-    환경 변수로부터 Supabase 클라이언트를 초기화하여 반환합니다.
+    Supabase 상품 원본 딕셔너리를 화면 표시용 포맷으로 가공하는 공통 함수
     """
-    supabase_url = os.getenv('SUPABASE_URL')
-    supabase_anon_key = os.getenv('SUPABASE_ANON_KEY')
+    if cat_info is None:
+        cat_info = CATEGORY_TYPE_MAP.get(
+            item.get('category_id'),
+            {'name': '기타', 'code': 'etc', 'badge_color': 'dark'}
+        )
 
-    if not supabase_url or not supabase_anon_key:
-        raise ValueError("SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경 변수가 설정되지 않았습니다.")
+    price = float(item.get('price') or 0)
+    sale_price = item.get('sale_price')
 
-    return create_client(supabase_url, supabase_anon_key)
+    if sale_price is not None and float(sale_price) < price:
+        sale_num = int(float(sale_price))
+        orig_num = int(price)
+        discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
+        display_price = f"{sale_num:,}원"
+        original_price_formatted = f"{orig_num:,}원"
+        has_discount = True
+    else:
+        sale_num = int(price)
+        discount_pct = 0
+        display_price = f"{sale_num:,}원"
+        original_price_formatted = None
+        has_discount = False
+
+    return {
+        "id": item.get('id'),
+        "name": item.get('name', '상품명 없음'),
+        "slug": item.get('slug'),
+        "category_name": cat_info.get('name', '기타'),
+        "category_code": cat_info.get('code', 'etc'),
+        "badge_color": cat_info.get('badge_color', 'dark'),
+        "price": display_price,
+        "original_price": original_price_formatted,
+        "has_discount": has_discount,
+        "discount_pct": discount_pct,
+        "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
+        "description": item.get('description', ''),
+        "status": item.get('status', 'active'),
+        "sale_price": item.get('sale_price'),
+        "raw_price": item.get('price')
+    }
 
 
 def fetch_featured_products(limit: int = 4) -> list:
@@ -68,44 +123,9 @@ def fetch_featured_products(limit: int = 4) -> list:
             raw_products = response.data or []
 
         # 데이터 가공: 가격 포맷팅 및 기본값 처리
-        formatted_products = []
-        for item in raw_products:
-            price = float(item.get('price') or 0)
-            sale_price = item.get('sale_price')
-
-            if sale_price is not None and float(sale_price) < price:
-                sale_num = int(float(sale_price))
-                orig_num = int(price)
-                discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
-                display_price = f"{sale_num:,}원"
-                original_price_formatted = f"{orig_num:,}원"
-                has_discount = True
-            else:
-                sale_num = int(price)
-                discount_pct = 0
-                display_price = f"{sale_num:,}원"
-                original_price_formatted = None
-                has_discount = False
-
-            formatted_products.append({
-                "id": item.get('id'),
-                "name": item.get('name', '상품명 없음'),
-                "price": display_price,
-                "original_price": original_price_formatted,
-                "has_discount": has_discount,
-                "discount_pct": discount_pct,
-                "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
-                "description": item.get('description', ''),
-                "status": item.get('status', 'active'),
-                "sale_price": item.get('sale_price'),
-                "raw_price": item.get('price')
-            })
-
-        return formatted_products
+        return [_format_product(item) for item in raw_products]
 
     except Exception as e:
-        # 터미널에 에러 로그 출력 (앱 중단 방지)
-        print(f"[ERROR] Supabase 상품 조회 실패: {e}", file=sys.stderr)
         logger.error("Supabase 상품 조회 중 오류 발생: %s", e, exc_info=True)
         return []
 
@@ -124,32 +144,6 @@ def index():
 # 신상품(NEW ARRIVALS) 조회 로직 및 라우트
 # 메인화면 추천 상품 4개(상의, 바지, 아우터, 원피스) + 카테고리별 신상품(바지, 원피스, 치마, 양말)
 # ------------------------------------------------------------------------------
-NEW_PRODUCT_SLUGS = [
-    # 메인 대표 신상품 4개
-    'basic-crop-tshirt',        # 상의 (category_id=1)
-    'wide-denim-pants',         # 바지 (category_id=2)
-    'overfit-cotton-jacket',    # 아우터 (category_id=3)
-    'floral-midi-dress',        # 원피스 (category_id=4)
-    # 바지 신상품 3개 (category_id=2)
-    'new-wide-denim', 'new-pin-tuck-slacks', 'new-cargo-jogger-pants',
-    # 원피스 신상품 4개 (category_id=4)
-    'new-french-floral-dress', 'new-linen-shirt-dress', 'new-square-neck-mini-dress', 'new-slim-knit-dress',
-    # 치마 신상품 4개 (category_id=8)
-    'new-pleats-tennis-skirt', 'new-aline-denim-skirt', 'new-mermaid-slit-skirt', 'new-wrap-check-skirt',
-    # 양말 신상품 2개 (category_id=5)
-    'new-cotton-ribbed-socks-5pack', 'new-retro-stripe-crew-socks-3pack'
-]
-
-CATEGORY_TYPE_MAP = {
-    1: {'name': '상의', 'code': 'top', 'badge_color': 'danger'},
-    2: {'name': '바지', 'code': 'pants', 'badge_color': 'secondary'},
-    3: {'name': '아우터', 'code': 'outer', 'badge_color': 'primary'},
-    4: {'name': '원피스', 'code': 'dress', 'badge_color': 'info'},
-    8: {'name': '치마', 'code': 'skirt', 'badge_color': 'warning'},
-    5: {'name': '양말', 'code': 'socks', 'badge_color': 'success'}
-}
-
-
 def fetch_new_arrivals() -> list:
     """
     Supabase products 테이블에서 13개 신상품 목록을 조회하고 가공합니다.
@@ -171,43 +165,7 @@ def fetch_new_arrivals() -> list:
     slug_order = {slug: i for i, slug in enumerate(NEW_PRODUCT_SLUGS)}
     raw_products.sort(key=lambda x: slug_order.get(x.get('slug', ''), 999))
 
-    formatted = []
-    for item in raw_products:
-        cat_info = CATEGORY_TYPE_MAP.get(item.get('category_id'), {'name': '기타', 'code': 'etc', 'badge_color': 'dark'})
-        price = float(item.get('price') or 0)
-        sale_price = item.get('sale_price')
-
-        if sale_price is not None and float(sale_price) < price:
-            sale_num = int(float(sale_price))
-            orig_num = int(price)
-            discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
-            display_price = f"{sale_num:,}원"
-            original_price_formatted = f"{orig_num:,}원"
-            has_discount = True
-        else:
-            sale_num = int(price)
-            discount_pct = 0
-            display_price = f"{sale_num:,}원"
-            original_price_formatted = None
-            has_discount = False
-
-        formatted.append({
-            'id': item.get('id'),
-            'name': item.get('name'),
-            'slug': item.get('slug'),
-            'category_name': cat_info['name'],
-            'category_code': cat_info['code'],
-            'badge_color': cat_info['badge_color'],
-            'price': display_price,
-            'original_price': original_price_formatted,
-            'has_discount': has_discount,
-            'discount_pct': discount_pct,
-            'thumbnail_url': item.get('thumbnail_url') or '/static/images/products/crop-tshirt.jpg',
-            'description': item.get('description', ''),
-            'status': item.get('status', 'active')
-        })
-
-    return formatted
+    return [_format_product(item) for item in raw_products]
 
 
 @main_bp.route('/new')
@@ -269,39 +227,7 @@ def search():
                 .execute()
             )
             raw_products = response.data or []
-
-            for item in raw_products:
-                cat_info = CATEGORY_TYPE_MAP.get(item.get('category_id'), {'name': '기타', 'code': 'etc', 'badge_color': 'dark'})
-                price = float(item.get('price') or 0)
-                sale_price = item.get('sale_price')
-
-                if sale_price is not None and float(sale_price) < price:
-                    sale_num = int(float(sale_price))
-                    orig_num = int(price)
-                    discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
-                    display_price = f"{sale_num:,}원"
-                    original_price_formatted = f"{orig_num:,}원"
-                    has_discount = True
-                else:
-                    sale_num = int(price)
-                    discount_pct = 0
-                    display_price = f"{sale_num:,}원"
-                    original_price_formatted = None
-                    has_discount = False
-
-                formatted_products.append({
-                    "id": item.get('id'),
-                    "name": item.get('name', '상품명 없음'),
-                    "slug": item.get('slug'),
-                    "category_name": cat_info['name'],
-                    "price": display_price,
-                    "original_price": original_price_formatted,
-                    "has_discount": has_discount,
-                    "discount_pct": discount_pct,
-                    "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
-                    "description": item.get('description', ''),
-                    "status": item.get('status', 'active')
-                })
+            formatted_products = [_format_product(item) for item in raw_products]
         except Exception as e:
             logger.error("상품 검색 중 오류 발생: %s", e, exc_info=True)
 
@@ -364,7 +290,6 @@ def benefits():
     user_info = None
     user_grade = 'BRONZE'
     total_spent = 0
-    next_grade_info = None
 
     if session.get('user'):
         user = session['user']
@@ -454,39 +379,7 @@ def wishlist_view():
             supabase = get_supabase_client()
             response = supabase.table('products').select('*').in_('id', wishlist_ids).execute()
             raw_products = response.data or []
-
-            for item in raw_products:
-                cat_info = CATEGORY_TYPE_MAP.get(item.get('category_id'), {'name': '기타', 'code': 'etc', 'badge_color': 'dark'})
-                price = float(item.get('price') or 0)
-                sale_price = item.get('sale_price')
-
-                if sale_price is not None and float(sale_price) < price:
-                    sale_num = int(float(sale_price))
-                    orig_num = int(price)
-                    discount_pct = int(round((1 - (sale_num / orig_num)) * 100))
-                    display_price = f"{sale_num:,}원"
-                    original_price_formatted = f"{orig_num:,}원"
-                    has_discount = True
-                else:
-                    sale_num = int(price)
-                    discount_pct = 0
-                    display_price = f"{sale_num:,}원"
-                    original_price_formatted = None
-                    has_discount = False
-
-                products.append({
-                    "id": item.get('id'),
-                    "name": item.get('name', '상품명 없음'),
-                    "slug": item.get('slug'),
-                    "category_name": cat_info['name'],
-                    "price": display_price,
-                    "original_price": original_price_formatted,
-                    "has_discount": has_discount,
-                    "discount_pct": discount_pct,
-                    "thumbnail_url": item.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
-                    "description": item.get('description', ''),
-                    "status": item.get('status', 'active')
-                })
+            products = [_format_product(item) for item in raw_products]
         except Exception as e:
             logger.error("위시리스트 상품 조회 실패: %s", e, exc_info=True)
 
@@ -595,8 +488,6 @@ def add_to_cart():
     장바구니 상품 추가 API
     요청 본문: JSON { "product_id": "...", "quantity": 1 }
     """
-    from flask import request, jsonify
-
     data = request.get_json(silent=True) or {}
     product_id = data.get('product_id')
     quantity = int(data.get('quantity', 1))
@@ -622,8 +513,6 @@ def update_cart_item():
     장바구니 상품 수량 변경 API
     요청 본문: JSON { "product_id": "...", "quantity": 2 }
     """
-    from flask import request, jsonify
-
     data = request.get_json(silent=True) or {}
     product_id = data.get('product_id')
     quantity = int(data.get('quantity', 1))
@@ -651,8 +540,6 @@ def remove_from_cart():
     장바구니 상품 개별 삭제 API
     요청 본문: JSON { "product_id": "..." }
     """
-    from flask import request, jsonify
-
     data = request.get_json(silent=True) or {}
     product_id = data.get('product_id')
 
@@ -674,7 +561,6 @@ def remove_from_cart():
 @main_bp.route('/api/cart/count', methods=['GET'])
 def get_cart_count():
     """장바구니 전체 수량 조회 API"""
-    from flask import jsonify
     cart = _get_cart()
     return jsonify({"cart_count": sum(cart.values())})
 
@@ -683,17 +569,12 @@ def get_cart_count():
 # 마이페이지 (MYPAGE) 라우트
 # ------------------------------------------------------------------------------
 @main_bp.route('/mypage')
+@login_required
 def mypage():
     """
     마이페이지 렌더링 라우트
     로그인 세션을 확인하고 프로필 정보 및 위시리스트/장바구니 요약을 제공합니다.
     """
-    from app.routes.auth import login_required
-
-    @login_required
-    def _mypage_view():
-        return render_template('mypage.html')
-
-    return _mypage_view()
+    return render_template('mypage.html')
 
 

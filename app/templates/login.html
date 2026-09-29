@@ -55,8 +55,11 @@
                                 <span class="input-group-text bg-light border-end-0 text-muted">
                                     <i class="bi bi-lock"></i>
                                 </span>
-                                <input type="password" class="form-control border-start-0" id="password" name="password" 
+                                <input type="password" class="form-control border-start-0 border-end-0" id="password" name="password" 
                                        placeholder="••••••••" required>
+                                <button class="btn btn-outline-secondary password-toggle-btn border-start-0" type="button" title="비밀번호 보기" aria-label="비밀번호 보기">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                             </div>
                         </div>
 
@@ -67,6 +70,20 @@
                             </button>
                         </div>
                     </form>
+
+                    <!-- 소셜 간편 로그인 구분선 -->
+                    <div class="d-flex align-items-center my-3">
+                        <hr class="flex-grow-1 my-0 text-muted">
+                        <span class="px-2 text-muted small">또는 SNS 간편 로그인</span>
+                        <hr class="flex-grow-1 my-0 text-muted">
+                    </div>
+
+                    <!-- 카카오 로그인 버튼 -->
+                    <div class="d-grid mb-3">
+                        <a href="{{ url_for('auth.kakao_login') }}" class="btn rounded-pill py-2 fw-semibold shadow-sm text-decoration-none d-flex align-items-center justify-content-center" style="background-color: #FEE500; color: #191919; border: none;">
+                            <i class="bi bi-chat-fill me-2" style="font-size: 1.1rem;"></i>카카오로 시작하기
+                        </a>
+                    </div>
 
                     <!-- 회원가입 안내 링크 -->
                     <div class="text-center mt-3 pt-3 border-top">

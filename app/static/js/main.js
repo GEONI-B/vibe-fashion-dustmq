@@ -227,10 +227,47 @@ function showSiteUnderConstructionModal() {
     }
 }
 
+/**
+ * 비밀번호 표시/숨김(눈 아이콘) 토글 기능 초기화
+ * input-group 내의 .password-toggle-btn 클릭 시 input의 type을 password <-> text로 전환합니다.
+ */
+function initPasswordToggle() {
+    const toggleButtons = document.querySelectorAll('.password-toggle-btn');
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const group = this.closest('.input-group');
+            if (!group) return;
+            const input = group.querySelector('input');
+            const icon = this.querySelector('i');
+            if (!input) return;
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) {
+                    icon.classList.remove('bi-eye');
+                    icon.classList.add('bi-eye-slash');
+                }
+                this.setAttribute('title', '비밀번호 숨기기');
+                this.setAttribute('aria-label', '비밀번호 숨기기');
+            } else {
+                input.type = 'password';
+                if (icon) {
+                    icon.classList.remove('bi-eye-slash');
+                    icon.classList.add('bi-eye');
+                }
+                this.setAttribute('title', '비밀번호 보기');
+                this.setAttribute('aria-label', '비밀번호 보기');
+            }
+        });
+    });
+}
+
 // 문서 로드 완료 시 초기화 작업
 document.addEventListener('DOMContentLoaded', () => {
     loadCartCount();
     initNavbarActive();
+    initPasswordToggle();
     showSiteUnderConstructionModal();
     console.log('VIBE FASHION 웹앱이 성공적으로 로드되었습니다.');
 });
