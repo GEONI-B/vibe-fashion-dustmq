@@ -679,3 +679,21 @@ def get_cart_count():
     return jsonify({"cart_count": sum(cart.values())})
 
 
+# ------------------------------------------------------------------------------
+# 마이페이지 (MYPAGE) 라우트
+# ------------------------------------------------------------------------------
+@main_bp.route('/mypage')
+def mypage():
+    """
+    마이페이지 렌더링 라우트
+    로그인 세션을 확인하고 프로필 정보 및 위시리스트/장바구니 요약을 제공합니다.
+    """
+    from app.routes.auth import login_required
+
+    @login_required
+    def _mypage_view():
+        return render_template('mypage.html')
+
+    return _mypage_view()
+
+
