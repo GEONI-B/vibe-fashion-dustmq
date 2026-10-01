@@ -24,8 +24,10 @@
                 <div class="card h-100 product-card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
                     <!-- 상품 이미지 영역 -->
                     <div class="position-relative product-img-wrapper" style="aspect-ratio: 4/5; overflow: hidden;">
-                        <img src="{{ item.thumbnail_url }}" class="card-img-top product-img w-100 h-100 object-fit-cover" 
-                             alt="{{ item.name }}" loading="lazy">
+                        <a href="{{ url_for('main.product_detail', product_id=item.id) }}">
+                            <img src="{{ item.thumbnail_url }}" class="card-img-top product-img w-100 h-100 object-fit-cover" 
+                                 alt="{{ item.name }}" loading="lazy">
+                        </a>
                         
                         <!-- 할인 뱃지 -->
                         <div class="position-absolute top-0 start-0 m-3 d-flex flex-column gap-1">
@@ -54,7 +56,9 @@
                         {% endif %}
 
                         <h5 class="card-title fw-bold fs-6 mb-2 text-truncate" title="{{ item.name }}">
-                            {{ item.name }}
+                            <a href="{{ url_for('main.product_detail', product_id=item.id) }}" class="text-decoration-none text-dark">
+                                {{ item.name }}
+                            </a>
                         </h5>
 
                         {% if item.description %}
@@ -63,7 +67,7 @@
                         </p>
                         {% endif %}
 
-                        <div class="mb-3">
+                        <div class="mb-0">
                             {% if item.has_discount %}
                             <div class="d-flex align-items-center gap-2">
                                 <span class="text-muted text-decoration-line-through small">{{ item.original_price }}</span>
@@ -73,13 +77,6 @@
                             <div class="d-flex align-items-baseline">
                                 <span class="h5 fw-bolder text-dark mb-0">{{ item.price }}</span>
                             </div>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-auto">
-                                <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2"
-                                    data-product-action="add-to-cart" data-product-id="{{ item.id }}" data-product-name="{{ item.name }}">
-                                <i class="bi bi-cart-plus me-1"></i>장바구니 담기
-                            </button>
                         </div>
                     </div>
                 </div>

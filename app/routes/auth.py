@@ -115,7 +115,8 @@ def _save_user_session(user, auth_session=None, auto_create_profile: bool = Fals
         'id': user.id,
         'email': user.email or f"{user.id[:8]}@{provider or 'user'}.user",
         'name': profile_name,
-        'grade': user_grade
+        'grade': user_grade,
+        'provider': provider or 'email'
     }
     if auth_session:
         session['access_token'] = auth_session.access_token
@@ -173,6 +174,16 @@ def login():
             auth_session = response.session
 
             if user:
+                # 이메일 인증 완료 여부 검사 (미인증 시 세션 저장 차단)
+                is_confirmed = bool(getattr(user, 'email_confirmed_at', None) or getattr(user, 'confirmed_at', None))
+                if not is_confirmed:
+                    # Supabase Auth 클라이언트의 세션 정리
+                    try:
+                        supabase.auth.sign_out()
+                    except Exception:
+                        pass
+                    return redirect(url_for('auth.login', error='email_not_confirmed', next=next_url))
+
                 profile_name = _save_user_session(user, auth_session)
                 flash(f'{profile_name}님, 환영합니다!', 'success')
                 safe_next = next_url if (next_url and next_url.startswith('/') and not next_url.startswith('//')) else None

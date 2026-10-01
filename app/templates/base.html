@@ -213,14 +213,17 @@
     </footer>
 
     <!-- 알림 토스트 (장바구니 담기 피드백) -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
         <div id="cartToast" class="toast retro-toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <i class="bi bi-check-circle-fill text-primary me-2"></i>
-                    <span id="toastMessage"><strong id="toastProductName"></strong> 상품이 장바구니에 추가되었습니다!</span>
+            <div class="d-flex align-items-center p-2">
+                <div class="toast-body d-flex align-items-center flex-grow-1 p-1">
+                    <i class="bi bi-check-circle-fill text-primary fs-4 me-3 flex-shrink-0"></i>
+                    <div class="toast-msg-container" id="toastMessage">
+                        <div id="toastProductName" class="fw-bold toast-product-name"></div>
+                        <div class="text-secondary small toast-action-desc">상품이 장바구니에 추가되었습니다!</div>
+                    </div>
                 </div>
-                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="닫기"></button>
+                <button type="button" class="btn-close me-2 flex-shrink-0" data-bs-dismiss="toast" aria-label="닫기"></button>
             </div>
         </div>
     </div>
@@ -277,19 +280,25 @@
     {% if session.get('user') %}
     <!-- 회원 탈퇴 확인 모달 (레트로 핑크 테마) -->
     <div class="modal fade" id="withdrawModal" tabindex="-1" aria-labelledby="withdrawModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
             <div class="modal-content retro-card overflow-hidden">
                 <div class="modal-body text-center p-4">
-                    <div class="fs-5 fw-bold text-dark mb-2">
-                        정말 탈퇴하시겠습니까? 😢
+                    <div class="mb-3">
+                        <span class="delete-dialog-icon">
+                            <i class="bi bi-person-x-fill"></i>
+                        </span>
                     </div>
-                    <p class="text-muted small mb-4">
-                        탈퇴 시 회원 혜택과 관심 상품 목록이 모두 삭제되며 복구할 수 없습니다.
-                    </p>
+                    <h5 class="fw-bold text-dark mb-2" id="withdrawModalLabel">
+                        정말 탈퇴하시겠습니까? 😢
+                    </h5>
+                    <div class="text-muted small mb-4 modal-desc-text">
+                        <p class="mb-1">탈퇴 시 회원 혜택과 관심 상품 목록이 모두 삭제되며</p>
+                        <p class="mb-0">삭제된 정보는 복구할 수 없습니다.</p>
+                    </div>
                     <form action="{{ url_for('auth.withdraw') }}" method="POST" class="d-flex justify-content-center gap-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" data-bs-dismiss="modal">취소</button>
-                        <button type="submit" class="btn btn-primary retro-btn fw-semibold">탈퇴하기</button>
+                        <button type="submit" class="btn retro-btn-danger fw-semibold">탈퇴하기</button>
                     </form>
                 </div>
             </div>

@@ -121,6 +121,49 @@
                                 </div>
                             </form>
                         </div>
+
+                        <!-- 비밀번호 변경 섹션 (이메일/비밀번호 가입 사용자에게만 조건부 표시) -->
+                        {% if is_email_user %}
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mt-4">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1">비밀번호 변경</h5>
+                                    <p class="text-muted small mb-0">안전한 계정 사용을 위해 비밀번호를 주기적으로 변경해 주세요.</p>
+                                </div>
+                            </div>
+
+                            <form method="POST" action="{{ url_for('main.change_password') }}" novalidate>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                                <div class="row g-3">
+                                    <!-- 기존 비밀번호 -->
+                                    <div class="col-12">
+                                        <label for="current_password" class="form-label small fw-semibold">현재 비밀번호 *</label>
+                                        <input type="password" class="form-control" id="current_password" name="current_password" placeholder="현재 비밀번호를 입력하세요" autocomplete="current-password" required>
+                                    </div>
+
+                                    <!-- 새 비밀번호 -->
+                                    <div class="col-md-6">
+                                        <label for="new_password" class="form-label small fw-semibold">새 비밀번호 *</label>
+                                        <input type="password" class="form-control" id="new_password" name="new_password" placeholder="최소 8자 이상 (숫자, 특수문자 포함)" autocomplete="new-password" required>
+                                        <div class="form-text small text-muted">최소 8자 이상, 숫자와 특수문자를 각각 1개 이상 포함해야 합니다.</div>
+                                    </div>
+
+                                    <!-- 새 비밀번호 확인 -->
+                                    <div class="col-md-6">
+                                        <label for="new_password_confirm" class="form-label small fw-semibold">새 비밀번호 확인 *</label>
+                                        <input type="password" class="form-control" id="new_password_confirm" name="new_password_confirm" placeholder="새 비밀번호를 한 번 더 입력하세요" autocomplete="new-password" required>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 pt-2 border-top d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-outline-dark rounded-pill px-4 py-2">
+                                        <i class="bi bi-key me-1"></i>비밀번호 변경
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
