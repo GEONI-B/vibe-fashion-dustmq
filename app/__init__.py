@@ -1,6 +1,7 @@
 # app/__init__.py - VIBE-FASHION 앱 팩토리 파일
 from flask import Flask
 from dotenv import load_dotenv
+from flask_wtf.csrf import CSRFError, CSRFProtect
 import os
 
 """
@@ -20,7 +21,22 @@ def create_app():
     app = Flask(__name__)
 
     # 3. 애플리케이션 시크릿 키 설정
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'vibe-fashion-secret-key-2026')
+    secret_key = os.getenv('SECRET_KEY')
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY 환경 변수가 설정되지 않았습니다.")
+
+    app.config.update(
+        SECRET_KEY=secret_key,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SECURE=os.getenv('SESSION_COOKIE_SECURE', 'true').lower() == 'true',
+        SESSION_COOKIE_SAMESITE='Lax'
+    )
+
+    CSRFProtect(app)
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        return '요청을 확인할 수 없습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.', 400
 
     # 4. routes 블루프린트 등록
     from app.routes.main import main_bp

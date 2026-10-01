@@ -30,7 +30,8 @@
                     </div>
                     {% endif %}
 
-                    <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+                    <form class="auth-form" method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <!-- 이메일 입력 -->
                         <div class="mb-3">
                             <label for="email" class="form-label small fw-semibold">이메일 주소</label>

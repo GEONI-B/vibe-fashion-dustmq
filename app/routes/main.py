@@ -43,15 +43,14 @@ NEW_PRODUCT_SLUGS = [
 ]
 
 
-def _format_product(item: dict, cat_info: dict | None = None) -> dict:
+def _format_product(item: dict) -> dict:
     """
     Supabase 상품 원본 딕셔너리를 화면 표시용 포맷으로 가공하는 공통 함수
     """
-    if cat_info is None:
-        cat_info = CATEGORY_TYPE_MAP.get(
-            item.get('category_id'),
-            {'name': '기타', 'code': 'etc', 'badge_color': 'dark'}
-        )
+    cat_info = CATEGORY_TYPE_MAP.get(
+        item.get('category_id'),
+        {'name': '기타', 'code': 'etc', 'badge_color': 'dark'}
+    )
 
     price = float(item.get('price') or 0)
     sale_price = item.get('sale_price')
@@ -146,7 +145,7 @@ def index():
 # ------------------------------------------------------------------------------
 def fetch_new_arrivals() -> list:
     """
-    Supabase products 테이블에서 13개 신상품 목록을 조회하고 가공합니다.
+    Supabase products 테이블에서 신상품 목록을 조회하고 가공합니다.
     """
     raw_products = []
     try:
@@ -213,7 +212,12 @@ def search():
     """
     상품명 및 설명 키워드 검색 라우트
     """
-    query = request.args.get('q', '').strip()
+    raw_query = request.args.get('q', '').strip()[:200]
+    query = ''.join(
+        character if character.isalnum() or character.isspace() or character == '-' else ' '
+        for character in raw_query
+    )
+    query = ' '.join(query.split())[:100]
     formatted_products = []
 
     if query:
@@ -426,6 +430,11 @@ def _get_cart():
     return session['cart']
 
 
+def _get_cart_count(cart):
+    """장바구니 전체 상품 수량을 계산합니다."""
+    return sum(cart.values())
+
+
 @main_bp.route('/cart')
 def cart_view():
     """
@@ -460,7 +469,7 @@ def cart_view():
                     "quantity": qty,
                     "subtotal": subtotal,
                     "subtotal_formatted": f"{subtotal:,}원",
-                    "thumbnail_url": product.get('thumbnail_url') or "https://picsum.photos/seed/default/600/800",
+                    "thumbnail_url": product.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
                     "description": product.get('description', '')
                 })
         except Exception as e:
@@ -499,7 +508,7 @@ def add_to_cart():
     cart[product_id] = cart.get(product_id, 0) + quantity
     session.modified = True
 
-    total_count = sum(cart.values())
+    total_count = _get_cart_count(cart)
     return jsonify({
         "success": True,
         "message": "장바구니에 상품이 추가되었습니다.",
@@ -527,7 +536,7 @@ def update_cart_item():
         cart[product_id] = quantity
 
     session.modified = True
-    total_count = sum(cart.values())
+    total_count = _get_cart_count(cart)
     return jsonify({
         "success": True,
         "cart_count": total_count
@@ -550,7 +559,7 @@ def remove_from_cart():
     cart.pop(product_id, None)
     session.modified = True
 
-    total_count = sum(cart.values())
+    total_count = _get_cart_count(cart)
     return jsonify({
         "success": True,
         "message": "장바구니에서 상품이 삭제되었습니다.",
@@ -561,8 +570,7 @@ def remove_from_cart():
 @main_bp.route('/api/cart/count', methods=['GET'])
 def get_cart_count():
     """장바구니 전체 수량 조회 API"""
-    cart = _get_cart()
-    return jsonify({"cart_count": sum(cart.values())})
+    return jsonify({"cart_count": _get_cart_count(_get_cart())})
 
 
 # ------------------------------------------------------------------------------

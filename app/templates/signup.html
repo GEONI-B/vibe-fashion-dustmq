@@ -30,7 +30,8 @@
                     </div>
                     {% endif %}
 
-                    <form method="POST" action="{{ url_for('auth.signup') }}">
+                    <form class="auth-form" method="POST" action="{{ url_for('auth.signup') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <!-- 이름 입력 -->
                         <div class="mb-3">
                             <label for="name" class="form-label small fw-semibold">이름 (닉네임)</label>
@@ -63,7 +64,7 @@
                                     <i class="bi bi-lock"></i>
                                 </span>
                                 <input type="password" class="form-control border-start-0 border-end-0" id="password" name="password" 
-                                       placeholder="8자 이상 영문, 숫자, 특수문자 조합" minlength="8" required>
+                                       placeholder="영문·숫자·기호" minlength="8" required>
                                 <button class="btn btn-outline-secondary password-toggle-btn border-start-0" type="button" title="비밀번호 보기" aria-label="비밀번호 보기">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -81,7 +82,7 @@
                                     <i class="bi bi-shield-lock"></i>
                                 </span>
                                 <input type="password" class="form-control border-start-0 border-end-0" id="password_confirm" name="password_confirm" 
-                                       placeholder="비밀번호 재입력" minlength="8" required>
+                                       placeholder="재입력" minlength="8" required>
                                 <button class="btn btn-outline-secondary password-toggle-btn border-start-0" type="button" title="비밀번호 보기" aria-label="비밀번호 보기">
                                     <i class="bi bi-eye"></i>
                                 </button>

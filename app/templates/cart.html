@@ -88,7 +88,7 @@
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm" onclick="alert('주문 결제 기능은 곧 오픈될 예정입니다!')">
+                        <button class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm" onclick="showAppAlert('주문 결제 기능은 곧 오픈될 예정입니다!')">
                             <i class="bi bi-credit-card me-2"></i>주문서 작성하기
                         </button>
                     </div>
@@ -114,12 +114,9 @@
 <script>
 // 수량 변경 함수
 function changeQuantity(productId, newQty) {
-    if (newQty < 1) {
-        if (!confirm('이 상품을 장바구니에서 삭제하시겠습니까?')) return;
-    }
-    fetch('/api/cart/update', {
+    const updateQuantity = () => fetch('/api/cart/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ product_id: productId, quantity: newQty })
     })
     .then(res => res.json())
@@ -129,23 +126,35 @@ function changeQuantity(productId, newQty) {
         }
     })
     .catch(err => console.error(err));
+
+    if (newQty < 1) {
+        showAppConfirm('이 상품을 장바구니에서 삭제하시겠습니까?', '삭제').then(confirmed => {
+            if (confirmed) updateQuantity();
+        });
+        return;
+    }
+
+    updateQuantity();
 }
 
 // 아이템 삭제 함수
 function removeCartItem(productId) {
-    if (!confirm('장바구니에서 삭제하시겠습니까?')) return;
-    fetch('/api/cart/remove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        }
-    })
-    .catch(err => console.error(err));
+    showAppConfirm('장바구니에서 삭제하시겠습니까?', '삭제').then(confirmed => {
+        if (!confirmed) return;
+
+        fetch('/api/cart/remove', {
+            method: 'POST',
+            headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ product_id: productId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(err => console.error(err));
+    });
 }
 </script>
 {% endblock %}

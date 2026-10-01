@@ -14,4 +14,5 @@ if __name__ == '__main__':
     print(" 접속 주소: http://127.0.0.1:5000")
     print("==========================================")
     # 로컬 개발 서버 실행
+    app.config['SESSION_COOKIE_SECURE'] = False
     app.run(host='127.0.0.1', port=5000, debug=True)

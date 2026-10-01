@@ -38,7 +38,7 @@
 
                         <!-- 위시리스트 해제 버튼 (관심 상품 페이지에서는 항상 active) -->
                         <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist active"
-                                onclick="removeWishlistItem('{{ item.id }}', '{{ item.name }}')" title="관심 상품 해제">
+                            data-product-action="remove-wishlist" data-product-id="{{ item.id }}" title="관심 상품 해제">
                             <i class="bi bi-heart-fill"></i>
                         </button>
                     </div>
@@ -76,8 +76,8 @@
                         </div>
 
                         <div class="d-grid gap-2 mt-auto">
-                            <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2" 
-                                    onclick="addToCart('{{ item.id }}', '{{ item.name }}')">
+                                <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2"
+                                    data-product-action="add-to-cart" data-product-id="{{ item.id }}" data-product-name="{{ item.name }}">
                                 <i class="bi bi-cart-plus me-1"></i>장바구니 담기
                             </button>
                         </div>
@@ -109,28 +109,4 @@
     </div>
 </section>
 
-<script>
-function removeWishlistItem(productId, productName) {
-    fetch('/api/wishlist/toggle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            const col = document.getElementById(`wishlist-col-${productId}`);
-            if (col) {
-                col.remove();
-            }
-            // 모든 상품이 제거되었는지 확인
-            const remaining = document.querySelectorAll('[id^="wishlist-col-"]');
-            if (remaining.length === 0) {
-                location.reload();
-            }
-        }
-    })
-    .catch(err => console.error('위시리스트 삭제 에러:', err));
-}
-</script>
 {% endblock %}

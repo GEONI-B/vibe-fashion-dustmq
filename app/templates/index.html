@@ -119,8 +119,8 @@
                         </div>
 
                         <!-- 위시리스트 하트 버튼 -->
-                        <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist"
-                                onclick="toggleWishlist(this, '{{ item.name }}')" title="관심 상품 등록">
+                            <button type="button" class="btn btn-light btn-sm rounded-circle position-absolute top-0 end-0 m-3 shadow-sm btn-wishlist"
+                                data-product-action="toggle-wishlist" data-product-id="{{ item.id }}" data-product-name="{{ item.name }}" title="관심 상품 등록">
                             <i class="bi bi-heart text-secondary"></i>
                         </button>
                     </div>
@@ -154,8 +154,8 @@
 
                         <!-- 장바구니 담기 버튼 -->
                         <div class="d-grid gap-2 mt-auto">
-                            <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2"
-                                    onclick="addToCart('{{ item.id }}', '{{ item.name }}')">
+                                <button class="btn btn-dark rounded-pill fw-semibold btn-add-cart py-2"
+                                    data-product-action="add-to-cart" data-product-id="{{ item.id }}" data-product-name="{{ item.name }}">
                                 <i class="bi bi-cart-plus me-1"></i>장바구니 담기
                             </button>
                         </div>

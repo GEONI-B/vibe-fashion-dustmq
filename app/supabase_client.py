@@ -5,7 +5,8 @@ Supabase 클라이언트 생성 및 관리를 담당하는 공통 유틸리티 �
 """
 
 import os
-from supabase import create_client, Client
+from flask import g, has_request_context, session
+from supabase import Client, ClientOptions, create_client
 
 _client: Client | None = None
 _admin_client: Client | None = None
@@ -31,6 +32,17 @@ def get_supabase_client(use_service_role: bool = False) -> Client:
 
     if not supabase_url or not anon_key:
         raise ValueError("SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경 변수가 설정되지 않았습니다.")
+
+    if has_request_context():
+        client = getattr(g, 'supabase_client', None)
+        if client is None:
+            access_token = session.get('access_token')
+            options = ClientOptions()
+            if access_token:
+                options.headers['Authorization'] = f'Bearer {access_token}'
+            client = create_client(supabase_url, anon_key, options)
+            g.supabase_client = client
+        return client
 
     if _client is None:
         _client = create_client(supabase_url, anon_key)

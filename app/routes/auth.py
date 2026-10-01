@@ -38,12 +38,9 @@ ERROR_MESSAGES = {
 }
 
 SUCCESS_MESSAGES = {
-    'signup_success': '회원가입이 완료되었습니다.',
-    'email_confirmed': '이메일 인증이 완료되었습니다! VIBE FASHION에 오신 것을 환영합니다.',
     'reset_mail_sent': '비밀번호 재설정 링크를 입력하신 이메일로 전송했습니다.',
     'password_reset_success': '비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해 주세요.',
-    'logged_out': '성공적으로 로그아웃되었습니다.',
-    'oauth_success': '카카오 계정으로 성공적으로 로그인되었습니다.'
+    'logged_out': '성공적으로 로그아웃되었습니다.'
 }
 
 
@@ -335,7 +332,7 @@ def confirm():
         _save_user_session(user, auth_session)
 
         flash('이메일 인증이 성공적으로 완료되었습니다!', 'success')
-        return redirect('/mypage')
+        return redirect(url_for('main.mypage'))
 
     except Exception as e:
         logger.error("이메일 인증(confirm) 처리 오류: %s", e)
@@ -435,8 +432,8 @@ def reset_password():
                 if session.get('access_token'):
                     try:
                         supabase.auth.set_session(session['access_token'], "")
-                    except Exception:
-                        pass
+                    except Exception as s_err:
+                        logger.warning("set_session 오류: %s", s_err)
                 supabase.auth.update_user({"password": password})
             else:
                 return redirect(url_for('auth.reset_password', error='session_expired'))
@@ -595,18 +592,8 @@ def withdraw():
     user_name = session.get('user', {}).get('name', '회원')
 
     try:
-        service_key = os.getenv('SUPABASE_SERVICE_KEY')
-        supabase_admin = get_supabase_client(use_service_role=bool(service_key))
-
-        try:
-            supabase_admin.table('profiles').delete().eq('id', user_id).execute()
-        except Exception as p_err:
-            logger.warning("회원탈퇴 profiles 레코드 삭제 경고: %s", p_err)
-
-        try:
-            supabase_admin.auth.admin.delete_user(user_id)
-        except Exception as a_err:
-            logger.warning("auth.admin.delete_user 실패: %s", a_err)
+        supabase_admin = get_supabase_client(use_service_role=True)
+        supabase_admin.auth.admin.delete_user(user_id)
 
         session.clear()
         flash(f'{user_name}님, 회원탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.', 'info')

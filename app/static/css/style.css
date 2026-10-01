@@ -44,17 +44,48 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 }
 .password-toggle-btn {
     border-color: #dee2e6;
-    background-color: #f8f9fa;
+    background-color: transparent !important;
     color: #6c757d;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 .password-toggle-btn:hover {
-    background-color: #e9ecef;
-    color: #212529;
+    background-color: transparent !important;
+    color: var(--pastel-pink-deep);
 }
 .password-toggle-btn:focus {
     box-shadow: none;
+}
+
+.auth-form > .mb-3,
+.auth-form > .mb-4 {
+    margin-bottom: 1.4rem !important;
+}
+
+.auth-form .form-label {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+}
+
+.auth-form .form-control {
+    min-width: 0;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.95rem !important;
+}
+
+.auth-form .form-control::placeholder {
+    font-size: 0.82rem !important;
+}
+
+@media (max-width: 300px) {
+    .auth-form .form-control::placeholder {
+        font-size: 0.78rem !important;
+    }
+}
+
+.auth-form .password-toggle-btn {
+    flex: 0 0 44px;
+    padding: 0;
 }
 
 /* 전역 베이스 스타일 */
@@ -131,6 +162,7 @@ body {
     border-radius: 12px;
     padding: 0.4rem 0.9rem !important;
     margin: 0 2px;
+    white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -456,7 +488,6 @@ input, textarea, select, button {
     color: #2b1f29 !important;
 }
 
-.product-card .card-body .h5.fw-bolder,
 .product-card .card-body .h5 {
     font-weight: 800 !important;
     color: var(--pastel-pink-deep) !important;
@@ -557,6 +588,41 @@ input, textarea, select, button {
     border: 3.5px solid #2b1f29 !important;
     border-radius: 24px !important;
     box-shadow: 6px 6px 0px var(--pastel-pink-deep) !important;
+}
+
+.retro-toast {
+    background-color: #ffffff !important;
+    color: var(--text-primary) !important;
+    border: 3px solid var(--retro-dark) !important;
+    border-radius: 18px !important;
+    box-shadow: 5px 5px 0 var(--pastel-pink-deep) !important;
+}
+
+.retro-toast .toast-body {
+    color: var(--text-primary);
+    font-family: 'Noto Sans KR', 'Jua', sans-serif;
+}
+
+.retro-toast .btn-close {
+    opacity: 0.65;
+}
+
+.app-dialog-icon {
+    width: 60px;
+    height: 60px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pastel-pink-deep);
+    background-color: var(--pastel-pink-soft);
+    border: 2.5px solid var(--retro-dark);
+    border-radius: 50%;
+    font-size: 1.8rem;
+}
+
+.app-dialog-message {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
 }
 
 .retro-btn {
