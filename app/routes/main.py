@@ -574,15 +574,83 @@ def get_cart_count():
 
 
 # ------------------------------------------------------------------------------
+# 마이페이지 (MYPAGE) 관련 헬퍼 함수
+# ------------------------------------------------------------------------------
+def _get_current_user_id() -> str | None:
+    """세션에서 현재 로그인된 사용자의 ID를 안전하게 추출합니다."""
+    return session.get('user_id') or session.get('user', {}).get('id')
+
+
+def _fetch_user_profile(user_id: str) -> dict:
+    """Supabase profiles 테이블에서 사용자 프로필을 조회합니다."""
+    if not user_id:
+        return {}
+    try:
+        supabase = get_supabase_client()
+        res = supabase.table('profiles').select('*').eq('id', user_id).maybe_single().execute()
+        return res.data if res and res.data else {}
+    except Exception as e:
+        logger.error("마이페이지 프로필 조회 실패 (user_id: %s): %s", user_id, e)
+        return {}
+
+
+def _update_user_profile(user_id: str, form_data: dict) -> tuple[bool, str]:
+    """
+    마이페이지 폼 데이터를 검증하고 profiles 테이블 및 세션에 반영합니다.
+    (성공 여부, 결과 메시지) 튜플을 반환합니다.
+    """
+    name = form_data.get('name', '').strip()
+    if not name:
+        return False, '이름은 필수 입력 항목입니다.'
+
+    phone = form_data.get('phone', '').strip()
+    postal_code = form_data.get('postal_code', '').strip()
+    address = form_data.get('address', '').strip()
+    address_detail = form_data.get('address_detail', '').strip()
+
+    update_payload = {
+        'name': name,
+        'phone': phone,
+        'postal_code': postal_code,
+        'address': address,
+        'address_detail': address_detail
+    }
+
+    try:
+        supabase = get_supabase_client()
+        supabase.table('profiles').update(update_payload).eq('id', user_id).execute()
+
+        # 세션 캐시 동기화
+        if 'user' in session and isinstance(session['user'], dict):
+            session['user']['name'] = name
+            session.modified = True
+
+        return True, '회원 정보가 성공적으로 수정되었습니다.'
+    except Exception as e:
+        logger.error("마이페이지 프로필 수정 실패 (user_id: %s): %s", user_id, e)
+        return False, '회원 정보 수정 중 오류가 발생했습니다. 다시 시도해 주세요.'
+
+
+# ------------------------------------------------------------------------------
 # 마이페이지 (MYPAGE) 라우트
 # ------------------------------------------------------------------------------
-@main_bp.route('/mypage')
+@main_bp.route('/mypage', methods=['GET', 'POST'])
 @login_required
 def mypage():
     """
-    마이페이지 렌더링 라우트
-    로그인 세션을 확인하고 프로필 정보 및 위시리스트/장바구니 요약을 제공합니다.
+    마이페이지 렌더링 및 프로필 수정 라우트
+    로그인 세션을 확인하고 profiles 테이블에서 사용자 정보를 조회/수정합니다.
     """
-    return render_template('mypage.html')
+    user_id = _get_current_user_id()
+
+    # POST: 내 정보 수정 처리
+    if request.method == 'POST':
+        success, message = _update_user_profile(user_id, request.form)
+        flash(message, 'success' if success else 'danger')
+        return redirect(url_for('main.mypage'))
+
+    # GET: 프로필 정보 조회
+    profile = _fetch_user_profile(user_id)
+    return render_template('mypage.html', profile=profile)
 
 

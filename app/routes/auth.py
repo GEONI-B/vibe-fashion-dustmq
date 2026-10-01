@@ -125,7 +125,7 @@ def _save_user_session(user, auth_session=None, auto_create_profile: bool = Fals
 
 def _clear_auth_session():
     """인증 관련 세션 키를 일괄 정리합니다."""
-    for key in ('user_id', 'user', 'access_token', 'recovery_access_token', 'recovery_refresh_token'):
+    for key in ('user_id', 'user', 'access_token', 'recovery_access_token', 'recovery_refresh_token', 'oauth_code_verifier'):
         session.pop(key, None)
 
 
@@ -517,6 +517,12 @@ def kakao_login():
             }
         })
         if res and res.url:
+            # PKCE flow: sign_in_with_oauth에서 생성된 code_verifier를 Flask 세션에 보관
+            storage_key = f"{getattr(supabase.auth, '_storage_key', 'supabase.auth.token')}-code-verifier"
+            if hasattr(supabase.auth, '_storage') and hasattr(supabase.auth._storage, 'get_item'):
+                code_verifier = supabase.auth._storage.get_item(storage_key)
+                if code_verifier:
+                    session['oauth_code_verifier'] = code_verifier
             return redirect(res.url)
         return redirect(url_for('auth.login', error='oauth_failed'))
     except Exception as e:
@@ -536,17 +542,23 @@ def callback():
     error = request.args.get('error')
 
     if error:
+        session.pop('oauth_code_verifier', None)
         logger.warning("OAuth 콜백 에러: %s, 설명: %s", error, request.args.get('error_description'))
         return redirect(url_for('auth.login', error='oauth_failed'))
 
     if not code:
+        session.pop('oauth_code_verifier', None)
         return redirect(url_for('auth.login', error='invalid_token'))
+
+    code_verifier = session.pop('oauth_code_verifier', None)
 
     try:
         supabase = get_supabase_client()
-        auth_response = supabase.auth.exchange_code_for_session({
-            "auth_code": code
-        })
+        exchange_params = {"auth_code": code}
+        if code_verifier:
+            exchange_params["code_verifier"] = code_verifier
+
+        auth_response = supabase.auth.exchange_code_for_session(exchange_params)
 
         if not auth_response or not auth_response.user:
             return redirect(url_for('auth.login', error='oauth_failed'))

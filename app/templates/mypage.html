@@ -8,83 +8,144 @@
         <!-- 페이지 상단 헤더 -->
         <div class="mb-4">
             <h2 class="fw-bolder mb-1">마이페이지</h2>
-            <p class="text-muted small">회원 정보 및 계정 활동을 확인하세요.</p>
+            <p class="text-muted small">회원 정보 및 주문/환불 내역을 확인하고 관리할 수 있습니다.</p>
         </div>
 
-        <div class="row g-4">
-            <!-- 좌측 사용자 프로필 카드 -->
-            <div class="col-12 col-lg-4">
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white text-center">
-                    <div class="d-inline-flex align-items-center justify-content-center bg-dark text-white rounded-circle mx-auto mb-3" style="width: 72px; height: 72px;">
-                        <i class="bi bi-person fs-1"></i>
-                    </div>
-                    <h5 class="fw-bold mb-1">{{ session.get('user', {}).get('name', '회원') }}님</h5>
-                    <p class="text-muted small mb-2">{{ session.get('user', {}).get('email', '') }}</p>
-                    <div class="mb-3">
-                        <span class="badge bg-secondary rounded-pill px-3 py-2 fw-semibold">
-                            등급: {{ session.get('user', {}).get('grade', 'BRONZE') }}
-                        </span>
+        <!-- Bootstrap 5 nav-tabs -->
+        <ul class="nav nav-tabs mb-4" id="mypageTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-semibold text-dark" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane" type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="true">
+                    <i class="bi bi-person-circle me-1"></i>내 정보
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-semibold text-dark" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-tab-pane" type="button" role="tab" aria-controls="orders-tab-pane" aria-selected="false">
+                    <i class="bi bi-bag-check me-1"></i>주문 내역
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-semibold text-dark" id="refunds-tab" data-bs-toggle="tab" data-bs-target="#refunds-tab-pane" type="button" role="tab" aria-controls="refunds-tab-pane" aria-selected="false">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>환불 내역
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Contents -->
+        <div class="tab-content" id="mypageTabContent">
+            <!-- 탭 1: 내 정보 (프로필 표시 및 수정 폼) -->
+            <div class="tab-pane fade show active" id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+                <div class="row g-4">
+                    <!-- 기본 정보 요약 카드 -->
+                    <div class="col-12 col-lg-4">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white text-center h-100">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-dark text-white rounded-circle mx-auto mb-3" style="width: 72px; height: 72px;">
+                                <i class="bi bi-person fs-1"></i>
+                            </div>
+                            <h5 class="fw-bold mb-1">{{ profile.get('name') or session.get('user', {}).get('name', '회원') }}님</h5>
+                            <p class="text-muted small mb-2">{{ profile.get('email') or session.get('user', {}).get('email', '') }}</p>
+                            <div class="mb-3">
+                                {% set grade = (profile.get('grade') or session.get('user', {}).get('grade', 'BRONZE'))|upper %}
+                                {% set grade_color = 'warning text-dark' if grade == 'GOLD' else ('primary' if grade == 'VIP' else ('info text-dark' if grade == 'SILVER' else 'secondary')) %}
+                                <span class="badge bg-{{ grade_color }} rounded-pill px-3 py-2 fw-semibold">
+                                    등급: {{ grade }}
+                                </span>
+                            </div>
+
+                            <hr class="my-3 text-muted">
+
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('main.benefits') }}" class="btn btn-outline-dark btn-sm rounded-pill py-2">
+                                    <i class="bi bi-award me-1"></i>회원 등급 및 혜택 보기
+                                </a>
+                                <a href="{{ url_for('auth.logout') }}" class="btn btn-light btn-sm text-secondary rounded-pill py-2">
+                                    <i class="bi bi-box-arrow-right me-1"></i>로그아웃
+                                </a>
+                            </div>
+                        </div>
                     </div>
 
-                    <hr class="my-3 text-muted">
+                    <!-- 내 정보 및 기본 배송지 수정 폼 -->
+                    <div class="col-12 col-lg-8">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-4">
+                                <h5 class="fw-bold mb-0">내 정보 & 기본 배송지</h5>
+                                <span class="text-muted small">* 표시는 필수 항목입니다</span>
+                            </div>
 
-                    <div class="d-grid gap-2">
-                        <a href="{{ url_for('main.benefits') }}" class="btn btn-outline-dark btn-sm rounded-pill py-2">
-                            <i class="bi bi-award me-1"></i>회원 등급 및 혜택 보기
-                        </a>
-                        <a href="{{ url_for('auth.logout') }}" class="btn btn-light btn-sm text-secondary rounded-pill py-2">
-                            <i class="bi bi-box-arrow-right me-1"></i>로그아웃
+                            <form method="POST" action="{{ url_for('main.mypage') }}" novalidate>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                                <div class="row g-3">
+                                    <!-- 이메일 (읽기 전용) -->
+                                    <div class="col-md-6">
+                                        <label for="email" class="form-label small fw-semibold text-muted">이메일 계정</label>
+                                        <input type="email" class="form-control bg-light" id="email" value="{{ profile.get('email') or session.get('user', {}).get('email', '') }}" readonly>
+                                        <div class="form-text small">가입된 이메일 계정은 변경할 수 없습니다.</div>
+                                    </div>
+
+                                    <!-- 이름 -->
+                                    <div class="col-md-6">
+                                        <label for="name" class="form-label small fw-semibold">이름 *</label>
+                                        <input type="text" class="form-control" id="name" name="name" value="{{ profile.get('name') or session.get('user', {}).get('name', '') }}" maxlength="50" required>
+                                    </div>
+
+                                    <!-- 연락처 -->
+                                    <div class="col-md-6">
+                                        <label for="phone" class="form-label small fw-semibold">전화번호</label>
+                                        <input type="tel" class="form-control" id="phone" name="phone" placeholder="010-0000-0000" pattern="[0-9\-]*" value="{{ profile.get('phone') or '' }}">
+                                    </div>
+
+                                    <!-- 우편번호 -->
+                                    <div class="col-md-6">
+                                        <label for="postal_code" class="form-label small fw-semibold">우편번호</label>
+                                        <input type="text" class="form-control" id="postal_code" name="postal_code" placeholder="예: 06123" maxlength="10" value="{{ profile.get('postal_code') or '' }}">
+                                    </div>
+
+                                    <!-- 기본 주소 -->
+                                    <div class="col-12">
+                                        <label for="address" class="form-label small fw-semibold">기본 주소</label>
+                                        <input type="text" class="form-control" id="address" name="address" placeholder="도로명 주소 또는 지번 주소" maxlength="200" value="{{ profile.get('address') or '' }}">
+                                    </div>
+
+                                    <!-- 상세 주소 -->
+                                    <div class="col-12">
+                                        <label for="address_detail" class="form-label small fw-semibold">상세 주소</label>
+                                        <input type="text" class="form-control" id="address_detail" name="address_detail" placeholder="동, 호수 등 상세 주소 입력" maxlength="100" value="{{ profile.get('address_detail') or '' }}">
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 pt-2 border-top d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-dark rounded-pill px-4 py-2">
+                                        <i class="bi bi-check-lg me-1"></i>정보 수정 완료
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 탭 2: 주문 내역 -->
+            <div class="tab-pane fade" id="orders-tab-pane" role="tabpanel" aria-labelledby="orders-tab" tabindex="0">
+                <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+                    <div class="my-5">
+                        <i class="bi bi-bag-x text-muted opacity-50 display-3 mb-3 d-block"></i>
+                        <h5 class="fw-bold text-secondary mb-2">아직 주문 내역이 없습니다</h5>
+                        <p class="text-muted small mb-4">새로운 스타일을 만나보고 첫 주문을 시작해 보세요.</p>
+                        <a href="{{ url_for('main.index') }}" class="btn btn-outline-dark btn-sm rounded-pill px-4 py-2">
+                            쇼핑하러 가기
                         </a>
                     </div>
                 </div>
             </div>
 
-            <!-- 우측 쇼핑 활동 요약 및 바로가기 -->
-            <div class="col-12 col-lg-8">
-                <div class="row g-3 mb-4">
-                    <div class="col-sm-6">
-                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="text-muted small fw-semibold">관심 상품 (위시리스트)</span>
-                                <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
-                                    <i class="bi bi-heart fs-5"></i>
-                                </div>
-                            </div>
-                            <h4 class="fw-bold mb-3">{{ session.get('wishlist', [])|length }} <small class="fs-6 fw-normal text-muted">개</small></h4>
-                            <a href="{{ url_for('main.wishlist_view') }}" class="text-decoration-none small text-dark fw-bold">
-                                관심 상품 보러가기 <i class="bi bi-chevron-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-sm-6">
-                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="text-muted small fw-semibold">장바구니 담긴 상품</span>
-                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
-                                    <i class="bi bi-cart3 fs-5"></i>
-                                </div>
-                            </div>
-                            <h4 class="fw-bold mb-3">{{ session.get('cart', {})|length }} <small class="fs-6 fw-normal text-muted">종류</small></h4>
-                            <a href="{{ url_for('main.cart_view') }}" class="text-decoration-none small text-dark fw-bold">
-                                장바구니 확인하기 <i class="bi bi-chevron-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 계정 관리 카드 -->
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <h5 class="fw-bold mb-3">계정 관리</h5>
-                    <p class="text-muted small mb-3">
-                        보안을 위해 비밀번호를 주기적으로 변경하거나 필요 시 계정을 탈퇴할 수 있습니다.
-                    </p>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-                            비밀번호 재설정
-                        </a>
-                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#withdrawModal">
-                            회원 탈퇴
-                        </button>
+            <!-- 탭 3: 환불 내역 -->
+            <div class="tab-pane fade" id="refunds-tab-pane" role="tabpanel" aria-labelledby="refunds-tab" tabindex="0">
+                <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+                    <div class="my-5">
+                        <i class="bi bi-arrow-counterclockwise text-muted opacity-50 display-3 mb-3 d-block"></i>
+                        <h5 class="fw-bold text-secondary mb-2">아직 환불 내역이 없습니다</h5>
+                        <p class="text-muted small mb-0">진행 중이거나 완료된 환불 내역이 존재하지 않습니다.</p>
                     </div>
                 </div>
             </div>
