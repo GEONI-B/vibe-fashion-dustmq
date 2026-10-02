@@ -1,0 +1,147 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}재고 관리 - VIBE FASHION 관리자{% endblock %}
+{% block header_title %}재고 관리{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm rounded-3 bg-white mb-4">
+    <div class="card-body p-3 p-md-4">
+        <!-- 검색 및 필터 폼 -->
+        <form method="GET" action="{{ url_for('admin.inventory_list') }}" class="row g-2 align-items-center">
+            <!-- 상품명 검색 -->
+            <div class="col-12 col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-muted border-end-0">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" class="form-control border-start-0" name="q" value="{{ query_params.q }}" placeholder="상품명 검색">
+                </div>
+            </div>
+
+            <!-- 재고 상태 필터 -->
+            <div class="col-12 col-md-4">
+                <select name="stock_status" class="form-select form-select-sm">
+                    <option value="">전체 상태</option>
+                    <option value="sold_out" {% if query_params.stock_status == 'sold_out' %}selected{% endif %}>품절 (0개)</option>
+                    <option value="low_stock" {% if query_params.stock_status == 'low_stock' %}selected{% endif %}>재고 부족 (1~5개)</option>
+                    <option value="normal" {% if query_params.stock_status == 'normal' %}selected{% endif %}>정상 (6개 이상)</option>
+                </select>
+            </div>
+
+            <!-- 검색 버튼 및 초기화 -->
+            <div class="col-12 col-md-3 d-flex gap-1 justify-content-end">
+                <button type="submit" class="btn btn-primary btn-sm rounded-2 flex-grow-1">
+                    <i class="bi bi-funnel me-1"></i>필터 적용
+                </button>
+                {% if query_params.q or query_params.stock_status %}
+                <a href="{{ url_for('admin.inventory_list') }}" class="btn btn-outline-secondary btn-sm rounded-2" title="필터 초기화">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 재고 목록 테이블 -->
+<div class="card border-0 shadow-sm rounded-3 bg-white">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="fw-bold text-dark">
+            <i class="bi bi-boxes me-1 text-primary"></i>옵션 / 재고 목록 (총 {{ total_count }}개)
+        </span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">
+                페이지 {{ current_page }} / {{ total_pages }}
+            </span>
+            <a href="{{ url_for('admin.inventory_new') }}" class="btn btn-primary btn-sm rounded-2 fw-semibold">
+                <i class="bi bi-plus-lg me-1"></i>옵션 등록
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if items %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+                <thead class="table-light">
+                    <tr>
+                        <th>상품명</th>
+                        <th style="width: 220px;">옵션명</th>
+                        <th style="width: 180px;">SKU</th>
+                        <th class="text-end" style="width: 120px;">현재 재고</th>
+                        <th class="text-center" style="width: 120px;">재고 상태</th>
+                        <th style="width: 220px;">재고 수정</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ item.product_name }}</div>
+                        </td>
+                        <td>
+                            <span class="text-secondary">{{ item.option_name }}</span>
+                        </td>
+                        <td>
+                            <code class="text-muted">{{ item.sku or '-' }}</code>
+                        </td>
+                        <td class="text-end fw-bold">
+                            {{ "{:,}".format(item.stock_quantity) }}개
+                        </td>
+                        <td class="text-center">
+                            {% if item.stock_status == 'sold_out' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">품절</span>
+                            {% elif item.stock_status == 'low_stock' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">재고 부족</span>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">정상</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin.inventory_update_stock', option_id=item.id) }}" class="d-flex gap-1">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="q" value="{{ query_params.q }}">
+                                <input type="hidden" name="stock_status" value="{{ query_params.stock_status }}">
+                                <input type="hidden" name="page" value="{{ current_page }}">
+                                <input type="number" name="stock_quantity" class="form-control form-control-sm" min="0" step="1" required value="{{ item.stock_quantity }}" aria-label="{{ item.option_name }} 재고 수량">
+                                <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap" title="재고 저장">
+                                    <i class="bi bi-check-lg me-1"></i>저장
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 페이지네이션 -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-center py-3 border-top">
+            <nav aria-label="재고 목록 페이지 이동">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.inventory_list', page=current_page-1, q=query_params.q, stock_status=query_params.stock_status) }}">이전</a>
+                    </li>
+                    {% for p in range(1, total_pages + 1) %}
+                    <li class="page-item {% if p == current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.inventory_list', page=p, q=query_params.q, stock_status=query_params.stock_status) }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.inventory_list', page=current_page+1, q=query_params.q, stock_status=query_params.stock_status) }}">다음</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- 0건 빈 상태 안내 -->
+        <div class="p-5 text-center text-muted">
+            <i class="bi bi-boxes fs-2 d-block mb-2 text-secondary opacity-50"></i>
+            조건에 맞는 옵션 및 재고 내역이 존재하지 않습니다.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

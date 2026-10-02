@@ -5,7 +5,11 @@ Supabase에서 상품 데이터를 조회하여 템플릿에 전달합니다.
 """
 
 import os
+import re
+import uuid
+import random
 import logging
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, session, request, jsonify, redirect, url_for, flash
 from app.supabase_client import get_supabase_client
 from app.routes.auth import login_required, validate_password_policy, ERROR_MESSAGES
@@ -566,23 +570,17 @@ def _get_cart_count(cart):
     return sum(cart.values())
 
 
-@main_bp.route('/cart')
-def cart_view():
+def _fetch_cart_items_for_user(user_id: str) -> dict:
     """
-    장바구니 페이지 렌더링 라우트
-    - 로그인 사용자의 경우: Supabase carts 테이블(옵션 정보 포함)에서 조회
-    - 비로그인 사용자의 경우: 세션 cart에서 조회
+    로그인 사용자의 DB 장바구니 아이템 및 금액 요약을 조회합니다.
     """
-    user_id = _get_current_user_id()
     cart_items = []
     total_goods_price = 0
-    supabase = get_supabase_client()
+    service_key = os.getenv('SUPABASE_SERVICE_KEY')
+    db_client = get_supabase_client(use_service_role=bool(service_key))
 
-    # 1. 로그인 사용자의 DB 장바구니 우선 조회
     if user_id:
         try:
-            service_key = os.getenv('SUPABASE_SERVICE_KEY')
-            db_client = get_supabase_client(use_service_role=bool(service_key))
             res = (
                 db_client.table('carts')
                 .select('id, quantity, product_id, option_id, product_options(*), products(*)')
@@ -620,6 +618,12 @@ def cart_view():
                         color = parts[0].strip()
                         size = parts[1].strip()
 
+                raw_stock = option.get('stock') if option.get('stock') is not None else option.get('stock_quantity', 0)
+                try:
+                    stock = int(raw_stock)
+                except (ValueError, TypeError):
+                    stock = 0
+
                 cart_items.append({
                     "id": cid,
                     "cart_id": cid,
@@ -628,7 +632,7 @@ def cart_view():
                     "name": product.get('name', '상품명 없음'),
                     "color": color,
                     "size": size,
-                    "stock": option.get('stock') if option.get('stock') is not None else option.get('stock_quantity', 0),
+                    "stock": stock,
                     "unit_price": unit_price,
                     "unit_price_formatted": f"{unit_price:,}원",
                     "quantity": qty,
@@ -643,49 +647,92 @@ def cart_view():
         except Exception as e:
             logger.error("DB 장바구니 조회 실패 (user_id: %s): %s", user_id, e, exc_info=True)
 
-    # 2. 비로그인 사용자이거나 DB 장바구니가 비어있는 경우 세션 조회
-    if not cart_items and not user_id:
-        cart = _get_cart()
-        if cart:
-            product_ids = list(cart.keys())
-            try:
-                response = supabase.table('products').select('*').in_('id', product_ids).execute()
-                products_data = {p['id']: p for p in (response.data or [])}
-
-                for pid, qty in cart.items():
-                    product = products_data.get(pid)
-                    if not product:
-                        continue
-
-                    unit_price = int(float(product.get('sale_price') if product.get('sale_price') is not None else product.get('price', 0)))
-                    subtotal = unit_price * qty
-                    total_goods_price += subtotal
-
-                    cart_items.append({
-                        "id": pid,
-                        "cart_id": None,
-                        "product_id": pid,
-                        "option_id": None,
-                        "name": product.get('name', '상품명 없음'),
-                        "color": None,
-                        "size": None,
-                        "stock": 99,
-                        "unit_price": unit_price,
-                        "unit_price_formatted": f"{unit_price:,}원",
-                        "quantity": qty,
-                        "subtotal": subtotal,
-                        "subtotal_formatted": f"{subtotal:,}원",
-                        "thumbnail_url": product.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
-                        "description": product.get('description', '')
-                    })
-            except Exception as e:
-                logger.error("세션 장바구니 상품 조회 실패: %s", e, exc_info=True)
-
     # 배송비 정책: 50,000원 이상 구매 시 무료 배송 (미만 시 3,000원)
     shipping_fee = 0 if (total_goods_price >= 50000 or total_goods_price == 0) else 3000
     final_payment_amount = total_goods_price + shipping_fee
 
     # 품절 상품(stock <= 0) 포함 여부 확인
+    has_out_of_stock = any(item.get('stock', 0) <= 0 for item in cart_items)
+
+    return {
+        "cart_items": cart_items,
+        "total_goods_price": total_goods_price,
+        "total_goods_price_formatted": f"{total_goods_price:,}원",
+        "shipping_fee": shipping_fee,
+        "shipping_fee_formatted": f"{shipping_fee:,}원" if shipping_fee > 0 else "무료",
+        "final_payment_amount": final_payment_amount,
+        "final_payment_amount_formatted": f"{final_payment_amount:,}원",
+        "has_out_of_stock": has_out_of_stock
+    }
+
+
+@main_bp.route('/cart')
+def cart_view():
+    """
+    장바구니 페이지 렌더링 라우트
+    - 로그인 사용자의 경우: Supabase carts 테이블(옵션 정보 포함)에서 조회
+    - 비로그인 사용자의 경우: 세션 cart에서 조회
+    """
+    user_id = _get_current_user_id()
+    supabase = get_supabase_client()
+
+    # 1. 로그인 사용자의 DB 장바구니 우선 조회
+    if user_id:
+        data = _fetch_cart_items_for_user(user_id)
+        return render_template(
+            'cart.html',
+            cart_items=data['cart_items'],
+            total_goods_price=data['total_goods_price'],
+            total_goods_price_formatted=data['total_goods_price_formatted'],
+            shipping_fee=data['shipping_fee'],
+            shipping_fee_formatted=data['shipping_fee_formatted'],
+            final_payment_amount=data['final_payment_amount'],
+            final_payment_amount_formatted=data['final_payment_amount_formatted'],
+            has_out_of_stock=data['has_out_of_stock']
+        )
+
+    # 2. 비로그인 사용자의 경우 세션 조회
+    cart_items = []
+    total_goods_price = 0
+    cart = _get_cart()
+    if cart:
+        product_ids = list(cart.keys())
+        try:
+            response = supabase.table('products').select('*').in_('id', product_ids).execute()
+            products_data = {p['id']: p for p in (response.data or [])}
+
+            for pid, qty in cart.items():
+                product = products_data.get(pid)
+                if not product:
+                    continue
+
+                unit_price = int(float(product.get('sale_price') if product.get('sale_price') is not None else product.get('price', 0)))
+                subtotal = unit_price * qty
+                total_goods_price += subtotal
+
+                cart_items.append({
+                    "id": pid,
+                    "cart_id": None,
+                    "product_id": pid,
+                    "option_id": None,
+                    "name": product.get('name', '상품명 없음'),
+                    "color": None,
+                    "size": None,
+                    "stock": 99,
+                    "unit_price": unit_price,
+                    "unit_price_formatted": f"{unit_price:,}원",
+                    "quantity": qty,
+                    "subtotal": subtotal,
+                    "subtotal_formatted": f"{subtotal:,}원",
+                    "thumbnail_url": product.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg",
+                    "description": product.get('description', '')
+                })
+        except Exception as e:
+            logger.error("세션 장바구니 상품 조회 실패: %s", e, exc_info=True)
+
+    # 배송비 정책: 50,000원 이상 구매 시 무료 배송 (미만 시 3,000원)
+    shipping_fee = 0 if (total_goods_price >= 50000 or total_goods_price == 0) else 3000
+    final_payment_amount = total_goods_price + shipping_fee
     has_out_of_stock = any(item.get('stock', 0) <= 0 for item in cart_items)
 
     return render_template(
@@ -701,13 +748,384 @@ def cart_view():
     )
 
 
-@main_bp.route('/order/checkout')
+@main_bp.route('/order/checkout', methods=['GET', 'POST'])
 @login_required
 def order_checkout():
     """
     주문서 작성/결제 페이지 라우트
+    - GET: 로그인 필수, 장바구니/품절 검증 후 주문서 페이지 렌더링
+    - POST: /order/create 로 위임하여 일관된 주문 처리
     """
-    return render_template('cart.html')
+    if request.method == 'POST':
+        return order_create()
+
+    user_id = _get_current_user_id()
+    if not user_id:
+        return redirect(url_for('auth.login', next=request.url))
+
+    cart_data = _fetch_cart_items_for_user(user_id)
+    cart_items = cart_data['cart_items']
+
+    # 1. 장바구니 비어있으면 /cart 리다이렉트
+    if not cart_items:
+        flash('장바구니가 비어 있어 주문할 수 없습니다.', 'warning')
+        return redirect(url_for('main.cart_view'))
+
+    # 2. 품절 상품이 하나라도 있으면 /cart 리다이렉트 및 안내
+    if cart_data['has_out_of_stock']:
+        flash('품절된 상품이 있어 주문할 수 없습니다.', 'danger')
+        return redirect(url_for('main.cart_view'))
+
+    profile = _fetch_user_profile(user_id)
+
+    return render_template(
+        'checkout.html',
+        cart_items=cart_items,
+        total_goods_price=cart_data['total_goods_price'],
+        total_goods_price_formatted=cart_data['total_goods_price_formatted'],
+        shipping_fee=cart_data['shipping_fee'],
+        shipping_fee_formatted=cart_data['shipping_fee_formatted'],
+        final_payment_amount=cart_data['final_payment_amount'],
+        final_payment_amount_formatted=cart_data['final_payment_amount_formatted'],
+        profile=profile,
+        form_data={}
+    )
+
+
+@main_bp.route('/order/create', methods=['POST'])
+@login_required
+def order_create():
+    """
+    주문 생성 처리 라우트 (POST /order/create)
+    처리 순서:
+    1. 장바구니 조회 + 재고 확인 (재고 부족 시 에러, 처리 중단, 아무 것도 쓰지 않음)
+    2. 배송지 입력값 서버 측 재검증 (수령인, 휴대폰 번호 패턴, 주소 최소 길이)
+    3. 주문번호 생성: 'VF-' + 오늘날짜(YYYYMMDD) + '-' + 4자리 랜덤숫자 + 밀리초 타임스탬프 뒷 3자리
+    4. orders 테이블에 INSERT (status='paid', paid_at=now())
+    5. order_items INSERT (상품명, 색상, 사이즈, 가격 스냅샷)
+    6. product_options.stock_quantity 차감 (service_role 키 RLS 우회, 조건부 UPDATE)
+       - 영향받은 행이 0개면 "방금 재고가 소진되었습니다" 에러로 롤백 처리
+    7. carts 아이템 DELETE
+    8. /order/complete/<order_id> 리다이렉트
+    """
+    user_id = _get_current_user_id()
+    if not user_id:
+        return redirect(url_for('auth.login', next=request.url))
+
+    profile = _fetch_user_profile(user_id)
+
+    # 1. 장바구니 조회 + 재고 확인 (재고 부족 시 에러, 처리 중단, 아무 것도 쓰지 않음)
+    cart_data = _fetch_cart_items_for_user(user_id)
+    cart_items = cart_data['cart_items']
+
+    if not cart_items:
+        flash('장바구니가 비어 있어 주문할 수 없습니다.', 'warning')
+        return redirect(url_for('main.cart_view'))
+
+    # 각 장바구니 품목의 재고 유효성 검사
+    for item in cart_items:
+        curr_stock = item.get('stock', 0)
+        req_qty = item.get('quantity', 1)
+        if curr_stock < req_qty or curr_stock <= 0:
+            flash(f"'{item.get('name')}' 상품의 재고가 부족합니다 (현재 재고: {curr_stock}개). 주문이 중단되었습니다.", 'danger')
+            return redirect(url_for('main.cart_view'))
+
+    if cart_data['has_out_of_stock']:
+        flash('품절된 상품이 있어 주문할 수 없습니다.', 'danger')
+        return redirect(url_for('main.cart_view'))
+
+    # 2. 배송지 입력값 서버 측 재검증 (휴대폰 번호 패턴, 주소 최소 길이)
+    recipient_name = request.form.get('recipient_name', '').strip()
+    recipient_phone = request.form.get('recipient_phone', '').strip()
+    shipping_postal_code = request.form.get('shipping_postal_code', '').strip()
+    shipping_address = request.form.get('shipping_address', '').strip()
+    shipping_address_detail = request.form.get('shipping_address_detail', '').strip()
+    shipping_memo = request.form.get('shipping_memo', '').strip()
+
+    if not recipient_name:
+        flash('수령인 이름을 입력해 주세요.', 'danger')
+        return render_template(
+            'checkout.html',
+            cart_items=cart_items,
+            total_goods_price=cart_data['total_goods_price'],
+            total_goods_price_formatted=cart_data['total_goods_price_formatted'],
+            shipping_fee=cart_data['shipping_fee'],
+            shipping_fee_formatted=cart_data['shipping_fee_formatted'],
+            final_payment_amount=cart_data['final_payment_amount'],
+            final_payment_amount_formatted=cart_data['final_payment_amount_formatted'],
+            profile=profile,
+            form_data=request.form
+        )
+
+    # 휴대폰 번호 패턴 검증 (010-0000-0000)
+    phone_pattern = r'^010-\d{4}-\d{4}$'
+    if not re.match(phone_pattern, recipient_phone):
+        flash('휴대폰 번호는 010-0000-0000 형식으로 입력해 주세요.', 'danger')
+        return render_template(
+            'checkout.html',
+            cart_items=cart_items,
+            total_goods_price=cart_data['total_goods_price'],
+            total_goods_price_formatted=cart_data['total_goods_price_formatted'],
+            shipping_fee=cart_data['shipping_fee'],
+            shipping_fee_formatted=cart_data['shipping_fee_formatted'],
+            final_payment_amount=cart_data['final_payment_amount'],
+            final_payment_amount_formatted=cart_data['final_payment_amount_formatted'],
+            profile=profile,
+            form_data=request.form
+        )
+
+    # 배송 주소 최소 5자 이상 검증
+    if len(shipping_address) < 5:
+        flash('배송 주소는 최소 5자 이상 입력해 주세요.', 'danger')
+        return render_template(
+            'checkout.html',
+            cart_items=cart_items,
+            total_goods_price=cart_data['total_goods_price'],
+            total_goods_price_formatted=cart_data['total_goods_price_formatted'],
+            shipping_fee=cart_data['shipping_fee'],
+            shipping_fee_formatted=cart_data['shipping_fee_formatted'],
+            final_payment_amount=cart_data['final_payment_amount'],
+            final_payment_amount_formatted=cart_data['final_payment_amount_formatted'],
+            profile=profile,
+            form_data=request.form
+        )
+
+    # 3. 주문번호 생성: 'VF-' + 오늘날짜(YYYYMMDD) + '-' + 4자리 랜덤숫자 + 밀리초 타임스탬프 뒷 3자리
+    now_utc = datetime.now(timezone.utc)
+    today_str = now_utc.strftime('%Y%m%d')
+    rand_4digit = f"{random.randint(0, 9999):04d}"
+    millis_suffix = f"{int(now_utc.timestamp() * 1000) % 1000:03d}"
+    order_number = f"VF-{today_str}-{rand_4digit}{millis_suffix}"
+
+    # Supabase service_role 클라이언트 획득 (RLS 우회 및 트랜잭션 성격의 처리)
+    service_key = os.getenv('SUPABASE_SERVICE_KEY')
+    supabase = get_supabase_client(use_service_role=bool(service_key))
+
+    created_order_id = None
+    deducted_options = []  # 롤백용: (opt_id, deducted_quantity)
+
+    try:
+        # 4. orders 테이블에 INSERT (status='paid', paid_at=now())
+        order_payload = {
+            'order_number': order_number,
+            'user_id': user_id,
+            'status': 'paid',
+            'total_amount': cart_data['total_goods_price'],
+            'discount_amount': 0,
+            'shipping_fee': cart_data['shipping_fee'],
+            'payment_amount': cart_data['final_payment_amount'],
+            'payment_method': '신용카드(더미)',
+            'payment_id': f"PAY-{uuid.uuid4().hex[:12].upper()}",
+            'recipient_name': recipient_name,
+            'recipient_phone': recipient_phone,
+            'shipping_postal_code': shipping_postal_code or '',
+            'shipping_address': shipping_address,
+            'shipping_address_detail': shipping_address_detail or '',
+            'shipping_memo': shipping_memo or '',
+            'paid_at': now_utc.isoformat(),
+        }
+
+        order_res = supabase.table('orders').insert(order_payload).execute()
+        if not order_res or not order_res.data:
+            raise Exception("주문 정보 저장에 실패했습니다.")
+
+        created_order = order_res.data[0]
+        created_order_id = created_order['id']
+
+        # 5. order_items INSERT (상품명, 색상, 사이즈, 가격 스냅샷)
+        order_items_payload = []
+        for item in cart_items:
+            opt_parts = []
+            if item.get('color'):
+                opt_parts.append(str(item['color']))
+            if item.get('size'):
+                opt_parts.append(str(item['size']))
+            opt_name = " / ".join(opt_parts) if opt_parts else None
+
+            order_items_payload.append({
+                'order_id': created_order_id,
+                'product_id': item.get('product_id'),
+                'option_id': item.get('option_id'),
+                'product_name': item.get('name', '상품명 없음'),
+                'option_name': opt_name,
+                'unit_price': item.get('unit_price', 0),
+                'quantity': item.get('quantity', 1),
+                'total_price': item.get('subtotal', 0)
+            })
+
+        if order_items_payload:
+            supabase.table('order_items').insert(order_items_payload).execute()
+
+        # 6. product_options.stock_quantity 차감 — 반드시 조건부 UPDATE 사용:
+        #    UPDATE ... SET stock = stock - 수량 WHERE id = 옵션ID AND stock >= 수량
+        #    영향받은 행이 0개면 "방금 재고가 소진되었습니다" 에러로 롤백 처리
+        for item in cart_items:
+            opt_id = item.get('option_id')
+            qty = item.get('quantity', 1)
+            if not opt_id:
+                continue
+
+            # 현재 최신 재고 조회
+            latest_opt_res = (
+                supabase.table('product_options')
+                .select('id, stock, stock_quantity')
+                .eq('id', opt_id)
+                .maybe_single()
+                .execute()
+            )
+            if not latest_opt_res or not latest_opt_res.data:
+                raise Exception(f"상품 옵션을 찾을 수 없습니다: {item.get('name')}")
+
+            current_stock = latest_opt_res.data.get('stock')
+            if current_stock is None:
+                current_stock = latest_opt_res.data.get('stock_quantity', 0)
+            current_stock = int(current_stock or 0)
+
+            # 조건부 UPDATE (WHERE id = 옵션ID AND stock >= 수량)
+            new_stock = current_stock - qty
+            update_payload = {'stock_quantity': new_stock}
+            if 'stock' in latest_opt_res.data:
+                update_payload['stock'] = new_stock
+
+            update_res = (
+                supabase.table('product_options')
+                .update(update_payload)
+                .eq('id', opt_id)
+                .gte('stock_quantity', qty)
+                .execute()
+            )
+
+            if not update_res or not update_res.data or len(update_res.data) == 0:
+                raise ValueError(f"방금 재고가 소진되었습니다. ({item.get('name')})")
+
+            deducted_options.append((opt_id, qty, current_stock))
+
+        # 7. carts 아이템 DELETE
+        supabase.table('carts').delete().eq('user_id', user_id).execute()
+        session_cart = _get_cart()
+        session_cart.clear()
+        session.modified = True
+
+        # 8. /order/complete/<order_id> 리다이렉트
+        flash('주문이 성공적으로 완료되었습니다.', 'success')
+        return redirect(url_for('main.order_complete', order_id=created_order_id))
+
+    except ValueError as ve:
+        # 재고 소진 등의 비즈니스 검증 실패 -> 롤백 처리
+        logger.warning("주문 생성 재고 부족/소진 롤백 발생: %s", ve)
+        _rollback_order(supabase, created_order_id, deducted_options)
+        flash(str(ve), 'danger')
+        return redirect(url_for('main.cart_view'))
+
+    except Exception as e:
+        logger.error("주문 생성 중 오류 발생 및 롤백 실행: %s", e, exc_info=True)
+        _rollback_order(supabase, created_order_id, deducted_options)
+        flash('주문 처리 중 오류가 발생했습니다. 다시 시도해 주세요.', 'danger')
+        return render_template(
+            'checkout.html',
+            cart_items=cart_items,
+            total_goods_price=cart_data['total_goods_price'],
+            total_goods_price_formatted=cart_data['total_goods_price_formatted'],
+            shipping_fee=cart_data['shipping_fee'],
+            shipping_fee_formatted=cart_data['shipping_fee_formatted'],
+            final_payment_amount=cart_data['final_payment_amount'],
+            final_payment_amount_formatted=cart_data['final_payment_amount_formatted'],
+            profile=profile,
+            form_data=request.form
+        )
+
+
+def _rollback_order(supabase, order_id: str | None, deducted_options: list):
+    """
+    주문 실패 시 orders 행 삭제 및 이미 차감된 옵션 재고 복구 (롤백 처리)
+    """
+    if not supabase:
+        return
+
+    # 1. 차감되었던 옵션 재고 원복
+    for item in deducted_options:
+        try:
+            opt_id, qty, original_stock = item
+            supabase.table('product_options').update({'stock_quantity': original_stock}).eq('id', opt_id).execute()
+        except Exception as err:
+            logger.error("재고 복구 롤백 실패 (opt_id: %s): %s", item[0], err)
+
+    # 2. 생성된 order 삭제 (ON DELETE CASCADE로 order_items도 자동 삭제)
+    if order_id:
+        try:
+            supabase.table('orders').delete().eq('id', order_id).execute()
+        except Exception as err:
+            logger.error("주문 레코드 삭제 롤백 실패 (order_id: %s): %s", order_id, err)
+
+
+@main_bp.route('/order/complete/<order_id>')
+@login_required
+def order_complete(order_id: str):
+    """
+    주문 완료 결과 안내 페이지 라우트 (GET /order/complete/<order_id>)
+    - 로그인 필수
+    - 본인 주문 확인 (다른 사용자의 order_id 접근 차단)
+    - 주문번호, 배송지, 주문 상품 목록, 결제 금액 표시
+    """
+    user_id = _get_current_user_id()
+    if not user_id:
+        return redirect(url_for('auth.login'))
+
+    service_key = os.getenv('SUPABASE_SERVICE_KEY')
+    supabase = get_supabase_client(use_service_role=bool(service_key))
+
+    try:
+        # order_id가 UUID 형식인지 또는 주문번호 형식인지 확인 후 조회
+        is_uuid = bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', order_id, re.IGNORECASE))
+        query = supabase.table('orders').select('*')
+        if is_uuid:
+            order_res = query.eq('id', order_id).maybe_single().execute()
+        else:
+            order_res = query.eq('order_number', order_id).maybe_single().execute()
+
+        if not order_res or not order_res.data:
+            flash('주문 정보를 찾을 수 없습니다.', 'warning')
+            return redirect(url_for('main.index'))
+
+        order = order_res.data
+
+        # 1. 본인 주문이 맞는지 확인 (다른 사용자의 order_id 접근 차단)
+        if order.get('user_id') != user_id:
+            logger.warning("타인의 주문 접근 차단 (user_id: %s, target_order_id: %s, owner_id: %s)", user_id, order_id, order.get('user_id'))
+            flash('다른 사용자의 주문 정보에는 접근할 수 없습니다.', 'danger')
+            return redirect(url_for('main.mypage'))
+
+        # 2. 주문 상품 품목 조회 (order_items 및 상품 썸네일)
+        items_res = (
+            supabase.table('order_items')
+            .select('*, products(thumbnail_url)')
+            .eq('order_id', order['id'])
+            .order('created_at', desc=False)
+            .execute()
+        )
+        raw_items = items_res.data or []
+        order_items = []
+        for ri in raw_items:
+            product = ri.get('products') or {}
+            ri['thumbnail_url'] = product.get('thumbnail_url') or "/static/images/products/crop-tshirt.jpg"
+            ri['unit_price_formatted'] = f"{int(float(ri.get('unit_price', 0))):,}원"
+            ri['total_price_formatted'] = f"{int(float(ri.get('total_price', 0))):,}원"
+            order_items.append(ri)
+
+        # 3. 결제 금액 표시 포맷팅
+        order_formatted = {
+            **order,
+            'total_amount_formatted': f"{int(float(order.get('total_amount', 0))):,}원",
+            'shipping_fee_formatted': f"{int(float(order.get('shipping_fee', 0))):,}원" if float(order.get('shipping_fee', 0)) > 0 else "무료",
+            'payment_amount_formatted': f"{int(float(order.get('payment_amount', 0))):,}원",
+        }
+
+        return render_template('order_complete.html', order=order_formatted, order_items=order_items)
+
+    except Exception as e:
+        logger.error("주문 완료 페이지 조회 오류: %s", e, exc_info=True)
+        flash('주문 정보를 불러오는 중 오류가 발생했습니다.', 'danger')
+        return redirect(url_for('main.index'))
 
 
 @main_bp.route('/cart/add', methods=['POST'])
@@ -1048,7 +1466,7 @@ def delete_cart_item(cart_id: str):
     supabase = get_supabase_client(use_service_role=bool(service_key))
 
     try:
-        # 1. 본인 소유의 장바구니 아이템인지 확인 (타인 접근 차단)
+        # 1. 본인 소유의 장바구니 아이템인지 확인 (id 또는 product_id 대응)
         item_res = (
             supabase.table('carts')
             .select('id, user_id, product_id, quantity')
@@ -1059,13 +1477,34 @@ def delete_cart_item(cart_id: str):
         )
 
         if not item_res or not item_res.data:
+            item_res = (
+                supabase.table('carts')
+                .select('id, user_id, product_id, quantity')
+                .eq('product_id', cart_id)
+                .eq('user_id', user_id)
+                .maybe_single()
+                .execute()
+            )
+
+        if not item_res or not item_res.data:
+            # 혹시 세션에만 있는 경우 세션에서 삭제
+            cart = _get_cart()
+            if cart_id in cart:
+                cart.pop(cart_id, None)
+                session.modified = True
+                return jsonify({
+                    "success": True,
+                    "message": "상품이 장바구니에서 삭제되었습니다.",
+                    "cart_count": _get_cart_count(cart)
+                })
             return jsonify({
                 "success": False,
                 "message": "장바구니 항목을 찾을 수 없거나 삭제 권한이 없습니다."
             }), 404
 
+        actual_id = item_res.data['id']
         # 2. 본인 아이템 확인 완료 후 삭제
-        supabase.table('carts').delete().eq('id', cart_id).eq('user_id', user_id).execute()
+        supabase.table('carts').delete().eq('id', actual_id).eq('user_id', user_id).execute()
 
         # 3. 세션 장바구니 수량 동기화
         c_all = supabase.table('carts').select('product_id, quantity').eq('user_id', user_id).execute()
@@ -1195,6 +1634,81 @@ def remove_from_cart():
         "success": True,
         "message": "장바구니에서 상품이 삭제되었습니다.",
         "cart_count": total_count
+    })
+
+
+@main_bp.route('/api/cart/delete-selected', methods=['POST'])
+def delete_selected_cart_items():
+    """
+    선택된 장바구니 상품 일괄 삭제 API
+    요청 본문: JSON { "cart_ids": ["...", "..."] }
+    """
+    data = request.get_json(silent=True) or {}
+    cart_ids = data.get('cart_ids') or []
+    if not cart_ids:
+        return jsonify({"success": False, "message": "삭제할 상품을 선택해 주세요."}), 400
+
+    user_id = _get_current_user_id()
+    if user_id:
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            supabase = get_supabase_client(use_service_role=bool(service_key))
+            # id 및 product_id 양쪽 조건 삭제 시도
+            supabase.table('carts').delete().in_('id', cart_ids).eq('user_id', user_id).execute()
+            supabase.table('carts').delete().in_('product_id', cart_ids).eq('user_id', user_id).execute()
+
+            # 세션 동기화
+            c_all = supabase.table('carts').select('product_id, quantity').eq('user_id', user_id).execute()
+            cart = _get_cart()
+            cart.clear()
+            for r in (c_all.data or []):
+                cart[r['product_id']] = cart.get(r['product_id'], 0) + int(r['quantity'])
+            session.modified = True
+            return jsonify({
+                "success": True,
+                "message": f"{len(cart_ids)}개의 상품이 삭제되었습니다.",
+                "cart_count": _get_cart_count(cart)
+            })
+        except Exception as e:
+            logger.error("선택 상품 일괄 삭제 실패: %s", e, exc_info=True)
+            return jsonify({"success": False, "message": "상품 삭제 중 오류가 발생했습니다."}), 500
+
+    # 비로그인 세션 기반
+    cart = _get_cart()
+    for cid in cart_ids:
+        cart.pop(cid, None)
+    session.modified = True
+
+    return jsonify({
+        "success": True,
+        "message": f"{len(cart_ids)}개의 상품이 삭제되었습니다.",
+        "cart_count": _get_cart_count(cart)
+    })
+
+
+@main_bp.route('/api/cart/clear', methods=['POST'])
+def clear_cart():
+    """
+    장바구니 전체 삭제(비우기) API
+    """
+    user_id = _get_current_user_id()
+    if user_id:
+        try:
+            service_key = os.getenv('SUPABASE_SERVICE_KEY')
+            supabase = get_supabase_client(use_service_role=bool(service_key))
+            supabase.table('carts').delete().eq('user_id', user_id).execute()
+        except Exception as e:
+            logger.error("장바구니 전체 삭제 실패: %s", e, exc_info=True)
+            return jsonify({"success": False, "message": "장바구니 전체 삭제 중 오류가 발생했습니다."}), 500
+
+    cart = _get_cart()
+    cart.clear()
+    session.modified = True
+
+    return jsonify({
+        "success": True,
+        "message": "장바구니가 모두 비워졌습니다.",
+        "cart_count": 0
     })
 
 
@@ -1388,7 +1902,26 @@ def mypage():
     # GET: 프로필 정보 조회
     profile = _fetch_user_profile(user_id)
     is_email_user = _is_email_user(user_id)
-    return render_template('mypage.html', profile=profile, is_email_user=is_email_user)
+
+    # 주문 내역 조회
+    orders = []
+    try:
+        service_key = os.getenv('SUPABASE_SERVICE_KEY')
+        supabase = get_supabase_client(use_service_role=bool(service_key))
+        orders_res = (
+            supabase.table('orders')
+            .select('*, order_items(*)')
+            .eq('user_id', user_id)
+            .order('created_at', desc=True)
+            .execute()
+        )
+        orders = orders_res.data or []
+        for o in orders:
+            o['payment_amount_formatted'] = f"{int(float(o.get('payment_amount', 0))):,}원"
+    except Exception as e:
+        logger.error("마이페이지 주문 내역 조회 실패: %s", e)
+
+    return render_template('mypage.html', profile=profile, is_email_user=is_email_user, orders=orders)
 
 
 @main_bp.route('/mypage/change-password', methods=['POST'])

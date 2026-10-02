@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}관리자 로그인 - VIBE FASHION{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-light min-vh-75 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-9 col-md-7 col-lg-5 col-xl-4">
+                <div class="card border-0 shadow-sm rounded-4 p-4 p-sm-5 bg-white">
+                    <div class="text-center mb-4">
+                        <div class="d-inline-flex align-items-center justify-content-center bg-dark text-white rounded-circle mb-3" style="width: 56px; height: 56px;">
+                            <i class="bi bi-shield-lock-fill fs-3"></i>
+                        </div>
+                        <h3 class="fw-bolder mb-1">관리자 로그인</h3>
+                        <p class="text-muted small">VIBE FASHION 시스템 관리자 전용</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('admin.admin_login', next=next) }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label small fw-semibold">관리자 이메일</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted">
+                                    <i class="bi bi-envelope"></i>
+                                </span>
+                                <input type="email" class="form-control border-start-0" id="email" name="email"
+                                       value="{{ email or '' }}" placeholder="admin@vibefashion.com" required autocomplete="email">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="password" class="form-label small fw-semibold">비밀번호</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0 text-muted">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                <input type="password" class="form-control border-start-0" id="password" name="password"
+                                       placeholder="비밀번호 입력" required autocomplete="current-password">
+                            </div>
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-dark rounded-pill py-2 fw-semibold">
+                                관리자 접속
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center pt-3 border-top">
+                        <a href="{{ url_for('main.index') }}" class="small text-muted text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i>쇼핑몰 홈으로 돌아가기
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

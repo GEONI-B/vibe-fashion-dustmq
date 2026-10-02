@@ -1,0 +1,159 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}상품 정보 수정 - VIBE FASHION 관리자{% endblock %}
+{% block header_title %}상품 정보 수정{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3 bg-white">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-dark">
+                    <i class="bi bi-pencil-square me-1 text-primary"></i>상품 정보 수정
+                </span>
+                <span class="text-muted small">
+                    상품 ID: <code>{{ product.id }}</code>
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('admin.product_edit', product_id=product.id) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <!-- 상품명 -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label small fw-bold">
+                            상품명 <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               class="form-control {% if errors.get('name') %}is-invalid{% endif %}"
+                               id="name"
+                               name="name"
+                               value="{{ form_data.get('name', '') }}"
+                               placeholder="상품명을 입력하세요"
+                               required>
+                        {% if errors.get('name') %}
+                        <div class="invalid-feedback">{{ errors['name'] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 카테고리 -->
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label small fw-bold">
+                            카테고리 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select {% if errors.get('category_id') %}is-invalid{% endif %}"
+                                id="category_id"
+                                name="category_id"
+                                required>
+                            <option value="">카테고리를 선택하세요</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if form_data.get('category_id') == (cat.id|string) %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.get('category_id') %}
+                        <div class="invalid-feedback">{{ errors['category_id'] }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 판매상태 -->
+                    <div class="mb-3">
+                        <label for="status" class="form-label small fw-bold">
+                            판매상태 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select {% if errors.get('status') %}is-invalid{% endif %}"
+                                id="status"
+                                name="status"
+                                required>
+                            <option value="active" {% if form_data.get('status') == 'active' %}selected{% endif %}>판매중 (active)</option>
+                            <option value="sold_out" {% if form_data.get('status') == 'sold_out' %}selected{% endif %}>품절 (sold_out)</option>
+                            <option value="hidden" {% if form_data.get('status') == 'hidden' %}selected{% endif %}>숨김 (hidden)</option>
+                        </select>
+                        {% if errors.get('status') %}
+                        <div class="invalid-feedback">{{ errors['status'] }}</div>
+                        {% endif %}
+                        <div class="form-text small text-muted">
+                            '판매중(active)'으로 변경하려면 해당 상품에 판매 가능한 재고(재고 > 0)를 가진 옵션이 최소 1개 이상 존재해야 합니다.
+                        </div>
+                    </div>
+
+                    <!-- 가격 설정 (정상가 / 할인가) -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label for="price" class="form-label small fw-bold">
+                                정상가 (원) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number"
+                                       class="form-control {% if errors.get('price') %}is-invalid{% endif %}"
+                                       id="price"
+                                       name="price"
+                                       value="{{ form_data.get('price', '') }}"
+                                       placeholder="0"
+                                       min="0"
+                                       step="1"
+                                       required>
+                                <span class="input-group-text bg-light text-muted small">원</span>
+                                {% if errors.get('price') %}
+                                <div class="invalid-feedback">{{ errors['price'] }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label for="sale_price" class="form-label small fw-bold">
+                                할인가 (원) <span class="text-muted fw-normal">(선택)</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number"
+                                       class="form-control {% if errors.get('sale_price') %}is-invalid{% endif %}"
+                                       id="sale_price"
+                                       name="sale_price"
+                                       value="{{ form_data.get('sale_price', '') }}"
+                                       placeholder="미적용 시 비워둠"
+                                       min="0"
+                                       step="1">
+                                <span class="input-group-text bg-light text-muted small">원</span>
+                                {% if errors.get('sale_price') %}
+                                <div class="invalid-feedback">{{ errors['sale_price'] }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-text small text-muted">할인가 적용 시 정상가 이하의 금액을 입력하세요.</div>
+                        </div>
+                    </div>
+
+                    <!-- 상품 slug (수정 불가 안내) -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">상품 슬러그 (Slug)</label>
+                        <input type="text" class="form-control bg-light text-muted" value="{{ product.slug or '-' }}" readonly disabled>
+                        <div class="form-text small text-muted">슬러그는 시스템 식별자로 직접 수정할 수 없으며 기존 값이 보존됩니다.</div>
+                    </div>
+
+                    <!-- 상품 설명 -->
+                    <div class="mb-4">
+                        <label for="description" class="form-label small fw-bold">
+                            상품 설명 <span class="text-muted fw-normal">(선택)</span>
+                        </label>
+                        <textarea class="form-control"
+                                  id="description"
+                                  name="description"
+                                  rows="4"
+                                  placeholder="상품에 대한 상세 설명을 입력하세요">{{ form_data.get('description', '') }}</textarea>
+                    </div>
+
+                    <!-- 버튼 영역 -->
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('admin.products_list') }}" class="btn btn-outline-secondary btn-sm rounded-2 px-3">
+                            취소
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-sm rounded-2 px-3 fw-bold">
+                            <i class="bi bi-check2 me-1"></i>수정 저장
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -21,64 +21,90 @@
             <!-- 왼쪽: 장바구니 상품 목록 -->
             <div class="col-lg-8">
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                        <span class="fw-bold" id="cartItemCountHeader">선택 상품 (총 {{ cart_items|length }}개 품목)</span>
+                    <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input mt-0" type="checkbox" id="checkAllItems" checked style="cursor: pointer; width: 1.15rem; height: 1.15rem;">
+                            <label class="form-check-label fw-bold text-dark small mb-0" for="checkAllItems" style="cursor: pointer;" id="cartItemCountHeader">
+                                전체 선택 (<span id="selectedCount">{{ cart_items|length }}</span>/{{ cart_items|length }})
+                            </label>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 fw-semibold" id="btnDeleteSelected">
+                                <i class="bi bi-trash3 me-1"></i>선택 삭제
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-semibold" id="btnDeleteAll">
+                                <i class="bi bi-x-circle me-1"></i>전체 삭제
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <ul class="list-group list-group-flush" id="cartItemList">
                             {% for item in cart_items %}
-                            <li class="list-group-item p-4" id="cart-item-{{ item.id }}">
+                            <li class="list-group-item p-3 p-md-4" id="cart-item-{{ item.id }}">
                                 <div class="row align-items-center g-3">
-                                    <!-- 상품 이미지 -->
-                                    <div class="col-3 col-sm-2">
-                                        <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="img-fluid rounded-3 border object-fit-cover" style="aspect-ratio: 1/1; width: 100%;">
-                                    </div>
-                                    <!-- 상품명 & 단가 & 옵션 정보 -->
-                                    <div class="col-9 col-sm-4">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <h6 class="fw-bold mb-0">{{ item.name }}</h6>
-                                            {% if item.stock <= 0 %}
-                                            <span class="badge bg-danger rounded-pill px-2 py-1 small">품절됨</span>
+                                    <!-- 체크박스 + 썸네일 + 상품 정보 (겹침 방지 Flex 그룹) -->
+                                    <div class="col-12 col-md-6 d-flex align-items-center gap-3">
+                                        <input type="checkbox" class="form-check-input cart-item-check flex-shrink-0 mt-0" value="{{ item.id }}" data-name="{{ item.name }}" checked style="cursor: pointer; width: 1.15rem; height: 1.15rem;">
+
+                                        <!-- 상품 썸네일 이미지 (크기 고정 및 겹침 방지) -->
+                                        <div class="flex-shrink-0" style="width: 80px; height: 80px;">
+                                            <img src="{{ item.thumbnail_url }}" alt="{{ item.name }}" class="w-100 h-100 rounded-3 border object-fit-cover shadow-sm">
+                                        </div>
+
+                                        <!-- 상품명 & 단가 & 옵션 정보 -->
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                                <h6 class="fw-bold mb-0 text-dark text-break">{{ item.name }}</h6>
+                                                {% if item.stock <= 0 %}
+                                                <span class="badge bg-danger rounded-pill px-2 py-1 small">품절됨</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-muted small mb-2">{{ item.unit_price_formatted }}</div>
+
+                                            <!-- 옵션(색상 / 사이즈) 뱃지 및 옵션 변경 버튼 -->
+                                            {% if item.color or item.size %}
+                                            <div class="d-flex flex-wrap align-items-center gap-1">
+                                                {% if item.color %}
+                                                <span class="badge bg-light text-dark border px-2 py-1 small">
+                                                    <i class="bi bi-palette me-1 text-secondary"></i>{{ item.color }}
+                                                </span>
+                                                {% endif %}
+                                                {% if item.size %}
+                                                <span class="badge bg-light text-dark border px-2 py-1 small">
+                                                    <i class="bi bi-tag me-1 text-secondary"></i>{{ item.size }}
+                                                </span>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill ms-1" style="font-size: 0.75rem;"
+                                                        onclick="openOptionChangeModal('{{ item.id }}', '{{ item.product_id }}', '{{ item.name }}', '{{ item.color or '' }}', '{{ item.size or '' }}', {{ item.quantity }})">
+                                                    <i class="bi bi-pencil-square me-1"></i>옵션 변경
+                                                </button>
+                                            </div>
+                                            {% else %}
+                                            <div>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size: 0.75rem;"
+                                                        onclick="openOptionChangeModal('{{ item.id }}', '{{ item.product_id }}', '{{ item.name }}', '', '', {{ item.quantity }})">
+                                                    <i class="bi bi-plus-circle me-1"></i>옵션 선택
+                                                </button>
+                                            </div>
                                             {% endif %}
                                         </div>
-                                        <div class="text-muted small mb-2">{{ item.unit_price_formatted }}</div>
-
-                                        <!-- 옵션(색상 / 사이즈) 뱃지 및 옵션 변경 버튼 -->
-                                        {% if item.color or item.size %}
-                                        <div class="d-flex flex-wrap align-items-center gap-1">
-                                            <span class="badge bg-light text-dark border px-2 py-1 small">
-                                                <i class="bi bi-palette me-1 text-secondary"></i>{{ item.color }}
-                                            </span>
-                                            <span class="badge bg-light text-dark border px-2 py-1 small">
-                                                <i class="bi bi-tag me-1 text-secondary"></i>{{ item.size }}
-                                            </span>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill ms-1" style="font-size: 0.75rem;"
-                                                    onclick="openOptionChangeModal('{{ item.id }}', '{{ item.product_id }}', '{{ item.name }}', '{{ item.color or '' }}', '{{ item.size or '' }}', {{ item.quantity }})">
-                                                <i class="bi bi-pencil-square me-1"></i>옵션 변경
-                                            </button>
-                                        </div>
-                                        {% else %}
-                                        <div>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size: 0.75rem;"
-                                                    onclick="openOptionChangeModal('{{ item.id }}', '{{ item.product_id }}', '{{ item.name }}', '', '', {{ item.quantity }})">
-                                                <i class="bi bi-plus-circle me-1"></i>옵션 선택
-                                            </button>
-                                        </div>
-                                        {% endif %}
                                     </div>
-                                    <!-- 수량 변경 버튼 -->
-                                    <div class="col-6 col-sm-3">
+
+                                    <!-- 수량 변경 버튼 (모바일: col-6, 데스크톱: col-md-3 중앙 정렬) -->
+                                    <div class="col-6 col-md-3 d-flex justify-content-start justify-content-md-center align-items-center">
                                         {% if item.stock <= 0 %}
-                                        <div class="input-group input-group-sm opacity-50" style="max-width: 120px;" title="품절된 상품은 수량을 변경할 수 없습니다.">
-                                            <button class="btn btn-outline-secondary" type="button" disabled>
-                                                <i class="bi bi-dash"></i>
-                                            </button>
-                                            <input type="text" class="form-control text-center bg-light" id="qty-input-{{ item.id }}" value="{{ item.quantity }}" disabled readonly>
-                                            <button class="btn btn-outline-secondary" type="button" disabled>
-                                                <i class="bi bi-plus"></i>
-                                            </button>
+                                        <div class="d-flex flex-column align-items-start align-items-md-center">
+                                            <div class="input-group input-group-sm opacity-50" style="max-width: 120px;" title="품절된 상품은 수량을 변경할 수 없습니다.">
+                                                <button class="btn btn-outline-secondary" type="button" disabled>
+                                                    <i class="bi bi-dash"></i>
+                                                </button>
+                                                <input type="text" class="form-control text-center bg-light" id="qty-input-{{ item.id }}" value="{{ item.quantity }}" disabled readonly>
+                                                <button class="btn btn-outline-secondary" type="button" disabled>
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div class="text-danger small mt-1" style="font-size: 0.75rem;">품절된 옵션입니다</div>
                                         </div>
-                                        <div class="text-danger small mt-1" style="font-size: 0.75rem;">품절된 옵션입니다</div>
                                         {% else %}
                                         <div class="input-group input-group-sm" style="max-width: 120px;">
                                             <button class="btn btn-outline-secondary" type="button" onclick="changeQuantity('{{ item.id }}', {{ item.quantity - 1 }})">
@@ -91,9 +117,10 @@
                                         </div>
                                         {% endif %}
                                     </div>
-                                    <!-- 소계 & 삭제 -->
-                                    <div class="col-6 col-sm-3 text-end">
-                                        <div class="fw-bold fs-6 mb-2" id="subtotal-{{ item.id }}">{{ item.subtotal_formatted }}</div>
+
+                                    <!-- 소계 & 삭제 (모바일: col-6, 데스크톱: col-md-3 우측 정렬) -->
+                                    <div class="col-6 col-md-3 text-end">
+                                        <div class="fw-bold fs-5 text-dark mb-1" id="subtotal-{{ item.id }}">{{ item.subtotal_formatted }}</div>
                                         <button type="button" class="btn btn-sm btn-link text-danger p-0 text-decoration-none" onclick="confirmDeleteCartItem('{{ item.id }}', '{{ item.name }}')">
                                             <i class="bi bi-trash3 me-1"></i>삭제
                                         </button>
@@ -184,7 +211,7 @@
                     </span>
                 </div>
                 <h5 class="fw-bold text-dark mb-2" id="deleteConfirmTitle">상품 삭제 확인</h5>
-                <p class="text-muted small mb-2">이 상품을 장바구니에서 삭제하시겠습니까?</p>
+                <p class="text-muted small mb-2" id="deleteConfirmDescription">이 상품을 장바구니에서 삭제하시겠습니까?</p>
                 <div class="text-secondary small fw-semibold mb-4 px-3 py-1 bg-light rounded-pill border text-truncate d-inline-block" style="max-width: 90%;" id="deleteTargetProductName"></div>
                 <div class="d-flex justify-content-center gap-2">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" data-bs-dismiss="modal">취소</button>
@@ -253,12 +280,31 @@
 </div>
 
 <script>
+// ==============================================================================
+// CSRF 토큰 및 공통 헬퍼 함수
+// ==============================================================================
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function csrfHeaders(headers = {}) {
+    const token = getCsrfToken();
+    return {
+        ...headers,
+        ...(token ? { 'X-CSRFToken': token } : {})
+    };
+}
+
+function showAppAlert(message) {
+    alert(message);
+}
+
+// ==============================================================================
 // 수량 변경 함수
+// ==============================================================================
 function changeQuantity(itemId, newQty) {
     if (newQty < 1) {
-        showAppConfirm('이 상품을 장바구니에서 삭제하시겠습니까?', '삭제').then(confirmed => {
-            if (confirmed) removeCartItem(itemId);
-        });
+        confirmDeleteCartItem(itemId, '');
         return;
     }
 
@@ -270,7 +316,6 @@ function changeQuantity(itemId, newQty) {
     })
     .then(async res => {
         if (res.status === 404 || res.status === 405) {
-            // 비로그인 세션 기반인 경우 기존 POST fallback
             return fetch('/api/cart/update', {
                 method: 'POST',
                 headers: csrfHeaders({ 'Content-Type': 'application/json' }),
@@ -293,15 +338,23 @@ function changeQuantity(itemId, newQty) {
 }
 
 // ==============================================================================
-// 장바구니 아이템 삭제 모달 및 DOM 실시간 제거 로직
+// 장바구니 아이템 삭제 모달 및 동작 로직
 // ==============================================================================
+let deleteActionType = 'single'; // 'single' | 'selected' | 'all'
 let deleteTargetItemId = null;
+let deleteTargetItemIds = [];
 let deleteModalInstance = null;
 
-function confirmDeleteCartItem(itemId, productName) {
-    deleteTargetItemId = itemId;
-    document.getElementById('deleteTargetProductName').textContent = productName ? `"${productName}"` : '';
-    
+function resetDeleteButton() {
+    const btn = document.getElementById('btnExecuteDelete');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '삭제';
+    }
+}
+
+function openDeleteModal() {
+    resetDeleteButton();
     const modalEl = document.getElementById('deleteConfirmModal');
     if (!deleteModalInstance) {
         deleteModalInstance = new bootstrap.Modal(modalEl);
@@ -309,100 +362,186 @@ function confirmDeleteCartItem(itemId, productName) {
     deleteModalInstance.show();
 }
 
+// 개별 삭제 모달 오픈
+function confirmDeleteCartItem(itemId, productName) {
+    deleteActionType = 'single';
+    deleteTargetItemId = itemId;
+    deleteTargetItemIds = [itemId];
+
+    document.getElementById('deleteConfirmTitle').textContent = '상품 삭제 확인';
+    document.getElementById('deleteConfirmDescription').textContent = '이 상품을 장바구니에서 삭제하시겠습니까?';
+
+    const nameEl = document.getElementById('deleteTargetProductName');
+    if (productName) {
+        nameEl.textContent = `"${productName}"`;
+        nameEl.classList.remove('d-none');
+    } else {
+        nameEl.classList.add('d-none');
+    }
+
+    openDeleteModal();
+}
+
+// 선택 삭제 모달 오픈
+function confirmDeleteSelected() {
+    const checkedBoxes = document.querySelectorAll('.cart-item-check:checked');
+    if (checkedBoxes.length === 0) {
+        showAppAlert('삭제할 상품을 선택해 주세요.');
+        return;
+    }
+
+    deleteActionType = 'selected';
+    deleteTargetItemIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+    document.getElementById('deleteConfirmTitle').textContent = '선택 상품 삭제 확인';
+    document.getElementById('deleteConfirmDescription').textContent = `선택하신 ${deleteTargetItemIds.length}개의 상품을 장바구니에서 삭제하시겠습니까?`;
+
+    const nameEl = document.getElementById('deleteTargetProductName');
+    nameEl.textContent = `총 ${deleteTargetItemIds.length}개 품목 선택됨`;
+    nameEl.classList.remove('d-none');
+
+    openDeleteModal();
+}
+
+// 전체 삭제 모달 오픈
+function confirmDeleteAll() {
+    const allBoxes = document.querySelectorAll('.cart-item-check');
+    if (allBoxes.length === 0) {
+        showAppAlert('장바구니에 상품이 없습니다.');
+        return;
+    }
+
+    deleteActionType = 'all';
+    deleteTargetItemIds = Array.from(allBoxes).map(cb => cb.value);
+
+    document.getElementById('deleteConfirmTitle').textContent = '장바구니 전체 삭제';
+    document.getElementById('deleteConfirmDescription').textContent = '장바구니에 담긴 모든 상품을 삭제하시겠습니까?';
+
+    const nameEl = document.getElementById('deleteTargetProductName');
+    nameEl.textContent = '장바구니 전체 비우기';
+    nameEl.classList.remove('d-none');
+
+    openDeleteModal();
+}
+
+// 삭제 실행 버튼 클릭 핸들러
 document.getElementById('btnExecuteDelete').addEventListener('click', function () {
-    if (!deleteTargetItemId) return;
-    const itemId = deleteTargetItemId;
     const btn = this;
-
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>삭제 중...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>삭제 중...';
 
-    // 1. DELETE /cart/<cart_id> 호출 (로그인 상태)
-    fetch(`/cart/${itemId}`, {
-        method: 'DELETE',
-        headers: csrfHeaders({ 'Content-Type': 'application/json' })
-    })
-    .then(async res => {
-        if (res.status === 404 || res.status === 405) {
-            // 비로그인 세션 기반인 경우 기존 POST fallback
-            return fetch('/api/cart/remove', {
-                method: 'POST',
-                headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ cart_id: itemId, product_id: itemId })
-            }).then(r => r.json());
-        }
-        return res.json();
-    })
+    let requestPromise;
+
+    if (deleteActionType === 'all') {
+        // 전체 삭제 요청
+        requestPromise = fetch('/api/cart/clear', {
+            method: 'POST',
+            headers: csrfHeaders({ 'Content-Type': 'application/json' })
+        }).then(r => r.json());
+    } else if (deleteActionType === 'selected') {
+        // 선택 삭제 요청
+        requestPromise = fetch('/api/cart/delete-selected', {
+            method: 'POST',
+            headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ cart_ids: deleteTargetItemIds })
+        }).then(r => r.json());
+    } else {
+        // 개별 상품 삭제 요청
+        const itemId = deleteTargetItemId;
+        requestPromise = fetch(`/cart/${itemId}`, {
+            method: 'DELETE',
+            headers: csrfHeaders({ 'Content-Type': 'application/json' })
+        })
+        .then(async res => {
+            if (res.status === 404 || res.status === 405) {
+                return fetch('/api/cart/remove', {
+                    method: 'POST',
+                    headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ cart_id: itemId, product_id: itemId })
+                }).then(r => r.json());
+            }
+            return res.json();
+        });
+    }
+
+    requestPromise
     .then(data => {
         if (data && data.success) {
-            // 모달 닫기
             if (deleteModalInstance) {
                 deleteModalInstance.hide();
             }
-
-            // 상단 네비게이션 장바구니 뱃지 갱신
             if (typeof updateCartBadge === 'function') {
                 updateCartBadge(data.cart_count || 0);
-            } else {
-                const badge = document.getElementById('cartCount');
-                if (badge) badge.textContent = data.cart_count || 0;
             }
-
-            // 2. 화면에서 해당 아이템만 제거 (페이지 새로고침 없음)
-            const itemElement = document.getElementById(`cart-item-${itemId}`);
-            if (itemElement) {
-                itemElement.classList.add('fade');
-                setTimeout(() => {
-                    itemElement.remove();
-                    checkCartEmptyState();
-                }, 150);
-            } else {
-                checkCartEmptyState();
-            }
+            // 새로고침하여 재고, 품절 알림, 배송비 및 결제 금액을 완벽하게 재계산
+            location.reload();
         } else {
             showAppAlert(data ? data.message : '삭제 처리에 실패했습니다.');
+            resetDeleteButton();
         }
     })
     .catch(err => {
         console.error('삭제 오류:', err);
         showAppAlert('장바구니 삭제 중 오류가 발생했습니다.');
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = '삭제';
-        deleteTargetItemId = null;
+        resetDeleteButton();
     });
 });
 
-// 남은 아이템 수 및 빈 장바구니 상태 체크 (새로고침 없이 DOM 전환)
-function checkCartEmptyState() {
-    const list = document.getElementById('cartItemList');
-    const remainingItems = list ? list.querySelectorAll('li.list-group-item') : [];
-    const count = remainingItems.length;
-
-    // 헤더 카운트 갱신
-    const countHeader = document.getElementById('cartItemCountHeader');
-    if (countHeader) {
-        countHeader.textContent = `선택 상품 (총 ${count}개 품목)`;
-    }
-
-    // 3. 장바구니가 비게 되면 "장바구니가 비어있습니다 + 쇼핑 계속하기" 안내 표시
-    if (count === 0) {
-        const contentRow = document.getElementById('cartContentRow');
-        const emptyView = document.getElementById('emptyCartView');
-
-        if (contentRow) contentRow.remove();
-        if (emptyView) emptyView.classList.remove('d-none');
-    } else {
-        // 주문 금액 재계산 요청 또는 간단 재렌더
-        location.reload();
-    }
-}
-
-// 아이템 삭제 함수 (호환용)
+// 호환용 함수
 function removeCartItem(itemId) {
     confirmDeleteCartItem(itemId, '');
 }
+
+// ==============================================================================
+// 체크박스 전체 선택 / 해제 및 선택 카운트 연동
+// ==============================================================================
+document.addEventListener('DOMContentLoaded', function () {
+    const checkAll = document.getElementById('checkAllItems');
+    const itemChecks = document.querySelectorAll('.cart-item-check');
+    const selectedCountEl = document.getElementById('selectedCount');
+    const modalEl = document.getElementById('deleteConfirmModal');
+
+    // 모달이 열리거나 닫힐 때 삭제 버튼 상태 항상 리셋
+    if (modalEl) {
+        modalEl.addEventListener('show.bs.modal', resetDeleteButton);
+        modalEl.addEventListener('hidden.bs.modal', resetDeleteButton);
+    }
+
+    function updateSelectedCount() {
+        const total = itemChecks.length;
+        const checkedCount = document.querySelectorAll('.cart-item-check:checked').length;
+        if (selectedCountEl) {
+            selectedCountEl.textContent = checkedCount;
+        }
+        if (checkAll) {
+            checkAll.checked = (total > 0 && checkedCount === total);
+            checkAll.indeterminate = (checkedCount > 0 && checkedCount < total);
+        }
+    }
+
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            itemChecks.forEach(cb => {
+                cb.checked = checkAll.checked;
+            });
+            updateSelectedCount();
+        });
+    }
+
+    itemChecks.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+
+    const btnDelSelected = document.getElementById('btnDeleteSelected');
+    if (btnDelSelected) {
+        btnDelSelected.addEventListener('click', confirmDeleteSelected);
+    }
+
+    const btnDelAll = document.getElementById('btnDeleteAll');
+    if (btnDelAll) {
+        btnDelAll.addEventListener('click', confirmDeleteAll);
+    }
+});
 
 // ==============================================================================
 // 옵션 변경 모달 관련 로직

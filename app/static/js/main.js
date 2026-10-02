@@ -9,17 +9,12 @@
  * @param {string} productId - 장바구니에 담을 상품 고유 UUID
  * @param {string} productName - 장바구니에 담을 상품명
  */
-function csrfHeaders(headers = {}) {
-    const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    return token ? { ...headers, 'X-CSRFToken': token } : headers;
-}
-
 function addToCart(productId, productName) {
     fetch('/api/cart/add', {
         method: 'POST',
-        headers: csrfHeaders({
+        headers: {
             'Content-Type': 'application/json'
-        }),
+        },
         body: JSON.stringify({
             product_id: productId,
             quantity: 1
@@ -33,15 +28,15 @@ function addToCart(productId, productName) {
 
             // 토스트 알림 메시지 설정 및 표시
             const toastElement = document.getElementById('cartToast');
-            const toastProductName = document.getElementById('toastProductName');
+            const toastMessage = document.getElementById('toastMessage');
 
-            if (toastElement && toastProductName) {
-                toastProductName.textContent = productName;
+            if (toastElement && toastMessage) {
+                toastMessage.innerHTML = `<strong>${productName}</strong> 상품이 장바구니에 추가되었습니다!`;
                 const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
                 toast.show();
             }
         } else {
-            showAppAlert(data.message || '장바구니 담기에 실패했습니다.');
+            alert(data.message || '장바구니 담기에 실패했습니다.');
         }
     })
     .catch(err => {
@@ -79,57 +74,18 @@ function loadCartCount() {
  */
 function showLoginModal(customMessage) {
     const message = customMessage || '로그인해야 합니다';
-    showAppAlert(message);
-}
-
-/**
- * 테마에 맞는 공통 안내 및 확인 모달을 표시합니다.
- * @param {string} message - 사용자에게 표시할 메시지
- * @param {{confirm?: boolean, confirmLabel?: string}} options - 확인 버튼 표시 옵션
- * @returns {Promise<boolean>} 확인을 선택했는지 여부
- */
-function showAppDialog(message, options = {}) {
-    const modalEl = document.getElementById('appDialogModal');
-    if (!modalEl || typeof bootstrap === 'undefined') {
-        console.error(message);
-        return Promise.resolve(false);
+    const textEl = document.getElementById('loginAlertModalText');
+    if (textEl) {
+        textEl.textContent = message;
     }
 
-    const isConfirm = options.confirm === true;
-    const titleEl = document.getElementById('appDialogTitle');
-    const messageEl = document.getElementById('appDialogMessage');
-    const iconEl = document.getElementById('appDialogIcon');
-    const confirmButton = document.getElementById('appDialogConfirm');
-    const cancelButton = document.getElementById('appDialogCancel');
-
-    titleEl.textContent = isConfirm ? '확인해 주세요' : '안내';
-    messageEl.textContent = message;
-    iconEl.className = `bi ${isConfirm ? 'bi-question-circle-fill' : 'bi-info-circle-fill'}`;
-    confirmButton.textContent = options.confirmLabel || '확인';
-    cancelButton.classList.toggle('d-none', !isConfirm);
-
-    return new Promise(resolve => {
-        let confirmed = false;
-        const onConfirm = () => {
-            confirmed = true;
-        };
-        const onHidden = () => {
-            confirmButton.removeEventListener('click', onConfirm);
-            resolve(confirmed);
-        };
-
-        confirmButton.addEventListener('click', onConfirm);
-        modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    });
-}
-
-function showAppAlert(message) {
-    return showAppDialog(message);
-}
-
-function showAppConfirm(message, confirmLabel = '확인') {
-    return showAppDialog(message, { confirm: true, confirmLabel });
+    const modalEl = document.getElementById('loginAlertModal');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    } else {
+        alert(message);
+    }
 }
 
 /**
@@ -157,71 +113,63 @@ function toggleWishlist(button, productName) {
         return false;
     }
 
-    const productId = button.dataset.productId;
-    if (!productId) return false;
+    // 서버 위시리스트 토글 API 연동 (카드의 addToCart 호출과 유사한 구조)
+    const cardEl = button.closest('.product-card');
+    const cartBtn = cardEl ? cardEl.querySelector('.btn-add-cart') : null;
+    let productId = null;
+    if (cartBtn) {
+        const onclickAttr = cartBtn.getAttribute('onclick') || '';
+        const match = onclickAttr.match(/addToCart\('([^']+)'/);
+        if (match) {
+            productId = match[1];
+        }
+    }
 
-    fetch('/api/wishlist/toggle', {
-        method: 'POST',
-        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ product_id: productId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            const icon = button.querySelector('i');
-            if (data.is_added) {
-                button.classList.add('active');
-                if (icon) {
-                    icon.classList.remove('bi-heart');
-                    icon.classList.add('bi-heart-fill');
+    if (productId) {
+        fetch('/api/wishlist/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const icon = button.querySelector('i');
+                if (data.is_added) {
+                    button.classList.add('active');
+                    if (icon) {
+                        icon.classList.remove('bi-heart');
+                        icon.classList.add('bi-heart-fill');
+                    }
+                    console.log(`[관심상품 등록] ${productName}`);
+                } else {
+                    button.classList.remove('active');
+                    if (icon) {
+                        icon.classList.remove('bi-heart-fill');
+                        icon.classList.add('bi-heart');
+                    }
+                    console.log(`[관심상품 해제] ${productName}`);
                 }
-                console.log(`[관심상품 등록] ${productName}`);
-            } else {
-                button.classList.remove('active');
-                if (icon) {
-                    icon.classList.remove('bi-heart-fill');
-                    icon.classList.add('bi-heart');
-                }
-                console.log(`[관심상품 해제] ${productName}`);
+            } else if (data.need_login) {
+                showLoginModal('로그인해야 이용 가능한 페이지입니다');
             }
-        } else if (data.need_login) {
-            showLoginModal('로그인해야 이용 가능한 페이지입니다');
-        }
-    })
-    .catch(err => console.error('위시리스트 토글 통신 실패:', err));
-}
+        })
+        .catch(err => console.error('위시리스트 토글 통신 실패:', err));
+        return;
+    }
 
-function removeWishlistItem(productId) {
-    fetch('/api/wishlist/toggle', {
-        method: 'POST',
-        headers: csrfHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ product_id: productId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data.success) return;
-
-        const item = document.getElementById(`wishlist-col-${productId}`);
-        if (item) item.remove();
-        if (!document.querySelector('[id^="wishlist-col-"]')) location.reload();
-    })
-    .catch(err => console.error('위시리스트 삭제 에러:', err));
-}
-
-function initProductActions() {
-    document.addEventListener('click', event => {
-        const button = event.target.closest('[data-product-action]');
-        if (!button) return;
-
-        const { productAction, productId, productName } = button.dataset;
-        if (productAction === 'add-to-cart') {
-            addToCart(productId, productName);
-        } else if (productAction === 'toggle-wishlist') {
-            toggleWishlist(button, productName);
-        } else if (productAction === 'remove-wishlist') {
-            removeWishlistItem(productId);
-        }
-    });
+    // 기본 UI 토글 fallback
+    const icon = button.querySelector('i');
+    button.classList.toggle('active');
+    if (button.classList.contains('active')) {
+        icon.classList.remove('bi-heart');
+        icon.classList.add('bi-heart-fill');
+        console.log(`[관심상품 등록] ${productName}`);
+    } else {
+        icon.classList.remove('bi-heart-fill');
+        icon.classList.add('bi-heart');
+        console.log(`[관심상품 해제] ${productName}`);
+    }
 }
 
 /**
@@ -279,48 +227,10 @@ function showSiteUnderConstructionModal() {
     }
 }
 
-/**
- * 비밀번호 표시/숨김(눈 아이콘) 토글 기능 초기화
- * input-group 내의 .password-toggle-btn 클릭 시 input의 type을 password <-> text로 전환합니다.
- */
-function initPasswordToggle() {
-    const toggleButtons = document.querySelectorAll('.password-toggle-btn');
-    toggleButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const group = this.closest('.input-group');
-            if (!group) return;
-            const input = group.querySelector('input');
-            const icon = this.querySelector('i');
-            if (!input) return;
-
-            if (input.type === 'password') {
-                input.type = 'text';
-                if (icon) {
-                    icon.classList.remove('bi-eye');
-                    icon.classList.add('bi-eye-slash');
-                }
-                this.setAttribute('title', '비밀번호 숨기기');
-                this.setAttribute('aria-label', '비밀번호 숨기기');
-            } else {
-                input.type = 'password';
-                if (icon) {
-                    icon.classList.remove('bi-eye-slash');
-                    icon.classList.add('bi-eye');
-                }
-                this.setAttribute('title', '비밀번호 보기');
-                this.setAttribute('aria-label', '비밀번호 보기');
-            }
-        });
-    });
-}
-
 // 문서 로드 완료 시 초기화 작업
 document.addEventListener('DOMContentLoaded', () => {
     loadCartCount();
-    initProductActions();
     initNavbarActive();
-    initPasswordToggle();
     showSiteUnderConstructionModal();
     console.log('VIBE FASHION 웹앱이 성공적으로 로드되었습니다.');
 });
